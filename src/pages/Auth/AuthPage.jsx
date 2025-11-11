@@ -1,81 +1,109 @@
 import React, { useState } from 'react';
-import { motion } from 'framer-motion';
-import RoleSelector from '../../components/ui/RoleSelector';
-import LoginFormStudent from '../../components/auth/LoginFormStudent';
-import RegisterFormStudent from '../../components/auth/RegisterFormStudent';
-import LoginFormParent from '../../components/auth/LoginFormParent';
-import RegisterFormParent from '../../components/auth/RegisterFormParent';
-import LoginFormTeacher from '../../components/auth/LoginFormTeacher';
-import RegisterFormTeacher from '../../components/auth/RegisterFormTeacher';
-import LoginFormAdmin from '../../components/auth/LoginFormAdmin';
-import RegisterFormAdmin from '../../components/auth/RegisterFormAdmin';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../../contexts/AuthContext';
+import { LoginFormStudent } from '../../components/auth/LoginFormStudent';
+import { RegisterFormStudent } from '../../components/auth/RegisterFormStudent';
 
 const AuthPage = () => {
-  const [selectedRole, setSelectedRole] = useState('student');
   const [isLogin, setIsLogin] = useState(true);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const { login, register } = useAuth();
+  const navigate = useNavigate();
 
-  const renderForm = () => {
-    const formKey = `${isLogin ? 'Login' : 'Register'}Form${selectedRole.charAt(0).toUpperCase() + selectedRole.slice(1)}`;
+  const handleLogin = async (formData) => {
+    setLoading(true);
+    setError('');
 
-    const forms = {
-      LoginFormStudent: <LoginFormStudent />,
-      RegisterFormStudent: <RegisterFormStudent />,
-      LoginFormParent: <LoginFormParent />,
-      RegisterFormParent: <RegisterFormParent />,
-      LoginFormTeacher: <LoginFormTeacher />,
-      RegisterFormTeacher: <RegisterFormTeacher />,
-      LoginFormAdmin: <LoginFormAdmin />,
-      RegisterFormAdmin: <RegisterFormAdmin />
-    };
+    const result = await login(formData.email, formData.password);
 
-    return forms[formKey] || <LoginFormStudent />;
+    if (result.success) {
+      // Redirect based on user role
+      const roleRoutes = {
+        admin: '/admin',
+        teacher: '/teacher',
+        student: '/student',
+        parent: '/parent'
+      };
+      navigate(roleRoutes[result.user?.role] || '/');
+    } else {
+      setError(result.message);
+    }
+
+    setLoading(false);
+  };
+
+  const handleRegister = async (formData) => {
+    setLoading(true);
+    setError('');
+
+    const result = await register(formData);
+
+    if (result.success) {
+      setIsLogin(true); // Switch to login after successful registration
+      setError('Registration successful! Please login.');
+    } else {
+      setError(result.message);
+    }
+
+    setLoading(false);
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary via-accent to-background flex items-center justify-center p-4">
-      <motion.div
-        initial={{ opacity: 0, scale: 0.9 }}
-        animate={{ opacity: 1, scale: 1 }}
-        transition={{ duration: 0.5 }}
-        className="w-full max-w-md"
-      >
-        <div className="bg-white rounded-2xl shadow-2xl p-8">
-          {/* Header */}
-          <div className="text-center mb-8">
-            <motion.h1
-              initial={{ opacity: 0, y: -20 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="text-3xl font-poppins font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent mb-2"
-            >
-              {isLogin ? 'Login to E-Flex' : 'Create an Account'}
-            </motion.h1>
-            <p className="text-gray-600">
-              {isLogin ? 'Welcome back!' : 'Join the E-Flex community'}
-            </p>
-          </div>
+    <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
+      <div className="sm:mx-auto sm:w-full sm:max-w-md">
+        <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
+          {isLogin ? 'Sign in to your account' : 'Create your account'}
+        </h2>
+      </div>
 
-          {/* Role Selector */}
-          <RoleSelector selectedRole={selectedRole} onRoleChange={setSelectedRole} />
+      <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
+        <div className="bg-white py-8 px-4 shadow sm:rounded-lg sm:px-10">
+          {error && (
+            <div className="mb-4 p-4 rounded-md bg-red-50 border border-red-200">
+              <p className="text-sm text-red-600">{error}</p>
+            </div>
+          )}
 
-          {/* Form */}
-          <div className="mt-8">
-            {renderForm()}
-          </div>
+          {isLogin ? (
+            <LoginFormStudent
+              onSubmit={handleLogin}
+              loading={loading}
+            />
+          ) : (
+            <RegisterFormStudent
+              onSubmit={handleRegister}
+              loading={loading}
+            />
+          )}
 
-          {/* Toggle between Login/Register */}
-          <div className="text-center mt-6">
-            <p className="text-gray-600">
-              {isLogin ? "Don't have an account?" : 'Already have an account?'}
+          <div className="mt-6">
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-gray-300" />
+              </div>
+              <div className="relative flex justify-center text-sm">
+                <span className="px-2 bg-white text-gray-500">
+                  {isLogin ? "Don't have an account?" : 'Already have an account?'}
+                </span>
+              </div>
+            </div>
+
+            <div className="mt-6">
               <button
-                onClick={() => setIsLogin(!isLogin)}
-                className="ml-2 text-primary hover:text-accent font-medium transition-colors"
+                type="button"
+                onClick={() => {
+                  setIsLogin(!isLogin);
+                  setError('');
+                }}
+                className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-indigo-600 bg-indigo-50 hover:bg-indigo-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
               >
-                {isLogin ? 'Create Account' : 'Login'}
+                {isLogin ? 'Create new account' : 'Sign in instead'}
               </button>
-            </p>
+            </div>
           </div>
         </div>
-      </motion.div>
+      </div>
     </div>
   );
 };

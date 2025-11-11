@@ -40,7 +40,18 @@ app.use(express.urlencoded({ extended: true }));
 
 // Routes
 app.use('/api/auth', require('./routes/auth'));
+app.use('/api/users', require('./routes/users'));
+app.use('/api/courses', require('./routes/courses'));
+app.use('/api/assignments', require('./routes/assignments'));
+app.use('/api/attendance', require('./routes/attendance'));
+app.use('/api/exams', require('./routes/exams'));
+app.use('/api/grades', require('./routes/grades'));
+app.use('/api/messages', require('./routes/messages'));
 app.use('/api/notifications', require('./routes/notifications'));
+app.use('/api/parent', require('./routes/parent'));
+
+// Serve static files from uploads directory
+app.use('/uploads', express.static('uploads'));
 
 // Health check
 app.get('/api/health', (req, res) => {

@@ -71,14 +71,44 @@ const RegisterFormStudent = () => {
     }
 
     setIsLoading(true);
-    // Simulate API call
-    setTimeout(() => {
+    try {
+      const response = await fetch('/api/auth/register', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          firstName: formData.fullName.split(' ')[0],
+          lastName: formData.fullName.split(' ').slice(1).join(' '),
+          email: formData.email,
+          password: formData.password,
+          role: 'student',
+          phoneNumber: formData.parentPhone,
+          admissionNumber: formData.admissionNumber,
+          class: formData.class,
+          stream: formData.stream,
+          // Note: In a real app, you'd need to create/find parent users first
+          linkedParents: [] // This would be populated when parents register
+        }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        // Store auth state
+        localStorage.setItem('userRole', 'student');
+        localStorage.setItem('isAuthenticated', 'true');
+        localStorage.setItem('userToken', data.token);
+        localStorage.setItem('userName', `${data.firstName} ${data.lastName}`);
+        navigate('/student/dashboard');
+      } else {
+        setErrors({ general: data.message || 'Registration failed' });
+      }
+    } catch (error) {
+      setErrors({ general: 'Network error. Please try again.' });
+    } finally {
       setIsLoading(false);
-      // Store auth state (in real app, this would be handled by auth context)
-      localStorage.setItem('userRole', 'student');
-      localStorage.setItem('isAuthenticated', 'true');
-      navigate('/student/dashboard');
-    }, 1000);
+    }
   };
 
   return (

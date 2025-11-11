@@ -105,6 +105,10 @@ export function DashboardLayout({
     id: 'messages-support',
     label: 'Messages / Support',
     icon: <HelpCircleIcon className="w-5 h-5" />
+  }, {
+    id: 'settings',
+    label: 'Settings',
+    icon: <SettingsIcon className="w-5 h-5" />
   }];
   const adminTabs = [{
     id: 'dashboard',
@@ -149,6 +153,40 @@ export function DashboardLayout({
   }];
   const tabs = userRole === 'student' ? studentTabs : userRole === 'teacher' ? teacherTabs : userRole === 'parent' ? parentTabs : userRole === 'admin' ? adminTabs : [];
   const getUserInfo = (): UserInfo => {
+    // Try to get user info from localStorage first
+    const storedName = localStorage.getItem('userName');
+    if (storedName) {
+      if (userRole === 'teacher') {
+        return {
+          name: storedName,
+          role: 'Teacher',
+          avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Teacher'
+        };
+      }
+      if (userRole === 'parent') {
+        return {
+          name: storedName,
+          role: 'Parent',
+          avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Parent'
+        };
+      }
+      if (userRole === 'admin') {
+        return {
+          name: storedName,
+          role: 'Administrator',
+          avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Admin'
+        };
+      }
+      if (userRole === 'student') {
+        return {
+          name: storedName,
+          role: 'Student',
+          avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Student'
+        };
+      }
+    }
+
+    // Fallback to mock data if no stored name
     if (userRole === 'teacher') {
       return {
         name: 'Ms. Sarah Johnson',

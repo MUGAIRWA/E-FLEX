@@ -45,14 +45,35 @@ const LoginFormStudent = () => {
     }
 
     setIsLoading(true);
-    // Simulate API call
-    setTimeout(() => {
+    try {
+      const response = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email: formData.email,
+          password: formData.password,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        // Store auth state
+        localStorage.setItem('userRole', 'student');
+        localStorage.setItem('isAuthenticated', 'true');
+        localStorage.setItem('userToken', data.token);
+        localStorage.setItem('userName', `${data.firstName} ${data.lastName}`);
+        navigate('/student/dashboard');
+      } else {
+        setErrors({ general: data.message || 'Login failed' });
+      }
+    } catch (error) {
+      setErrors({ general: 'Network error. Please try again.' });
+    } finally {
       setIsLoading(false);
-      // Store auth state (in real app, this would be handled by auth context)
-      localStorage.setItem('userRole', 'student');
-      localStorage.setItem('isAuthenticated', 'true');
-      navigate('/student/dashboard');
-    }, 1000);
+    }
   };
 
   return (
