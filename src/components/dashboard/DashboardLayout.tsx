@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useNavigate } from 'react-router-dom';
 import { HomeIcon, BookOpenIcon, FileTextIcon, UsersIcon, BellIcon, HelpCircleIcon, MenuIcon, XIcon, LogOutIcon, SettingsIcon, UploadIcon, ClipboardCheckIcon, TrendingUpIcon, CreditCardIcon } from 'lucide-react';
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -19,8 +20,17 @@ export function DashboardLayout({
   onTabChange,
   userRole
 }: DashboardLayoutProps) {
+  const navigate = useNavigate();
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
+
+  const handleLogout = () => {
+    // Clear authentication data from localStorage
+    localStorage.removeItem('userRole');
+    localStorage.removeItem('isAuthenticated');
+    // Navigate to landing page
+    navigate('/');
+  };
   const studentTabs = [{
     id: 'overview',
     label: 'Overview',
@@ -49,6 +59,10 @@ export function DashboardLayout({
     id: 'payment',
     label: 'Payment',
     icon: <CreditCardIcon className="w-5 h-5" />
+  }, {
+    id: 'settings',
+    label: 'Settings',
+    icon: <SettingsIcon className="w-5 h-5" />
   }];
   const teacherTabs = [{
     id: 'overview',
@@ -222,13 +236,7 @@ export function DashboardLayout({
                     <span className="font-medium">{tab.label}</span>
                   </motion.button>)}
                 <div className="pt-6 mt-6 border-t border-gray-200 space-y-2">
-                  {userRole !== 'admin' && (
-                    <button className="w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-gray-700 hover:bg-gray-100 transition-all">
-                      <SettingsIcon className="w-5 h-5" />
-                      <span className="font-medium">Settings</span>
-                    </button>
-                  )}
-                  <button className="w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-gray-700 hover:bg-gray-100 transition-all">
+                  <button onClick={handleLogout} className="w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-gray-700 hover:bg-gray-100 transition-all">
                     <LogOutIcon className="w-5 h-5" />
                     <span className="font-medium">Logout</span>
                   </button>
@@ -263,13 +271,7 @@ export function DashboardLayout({
                       <span className="font-medium">{tab.label}</span>
                     </motion.button>)}
                   <div className="pt-6 mt-6 border-t border-gray-200 space-y-2">
-                    {userRole !== 'admin' && (
-                      <button className="w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-gray-700 hover:bg-gray-100 transition-all">
-                        <SettingsIcon className="w-5 h-5" />
-                        <span className="font-medium">Settings</span>
-                      </button>
-                    )}
-                    <button className="w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-gray-700 hover:bg-gray-100 transition-all">
+                    <button onClick={handleLogout} className="w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-gray-700 hover:bg-gray-100 transition-all">
                       <LogOutIcon className="w-5 h-5" />
                       <span className="font-medium">Logout</span>
                     </button>

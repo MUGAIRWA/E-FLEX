@@ -8,6 +8,7 @@ import { Community } from './Student/CommunityTab';
 import { AnnouncementsTab } from './Student/AnnouncementsTab';
 import { SupportTab } from './Student/SupportTab';
 import { Payment } from './Student/Payment';
+import { SettingsTab } from './Student/SettingsTab';
 export function StudentDashboard() {
   const [activeTab, setActiveTab] = useState('overview');
   const renderContent = () => {
@@ -26,6 +27,8 @@ export function StudentDashboard() {
         return <SupportTab />;
       case 'payment':
         return <Payment />;
+      case 'settings':
+        return <SettingsTab />;
       default:
         return <OverviewTab />;
     }

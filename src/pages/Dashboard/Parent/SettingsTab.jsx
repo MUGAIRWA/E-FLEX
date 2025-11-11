@@ -1,16 +1,26 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
+import { useNavigate } from 'react-router-dom';
 import { Card } from '../../../components/ui/Card';
 import { Button } from '../../../components/ui/Button';
 import { UserIcon, MailIcon, PhoneIcon, EyeIcon, EyeOffIcon, LogOutIcon } from 'lucide-react';
 
 export function SettingsTab() {
+  const navigate = useNavigate();
   const [showPassword, setShowPassword] = useState(false);
   const [notifications, setNotifications] = useState({
     email: true,
     sms: false,
     push: true
   });
+
+  const handleLogout = () => {
+    // Clear authentication data from localStorage
+    localStorage.removeItem('userRole');
+    localStorage.removeItem('isAuthenticated');
+    // Navigate to landing page
+    navigate('/');
+  };
 
   const parentInfo = {
     name: 'Mrs. Jane Doe',
@@ -205,7 +215,7 @@ export function SettingsTab() {
             <h3 className="text-lg font-semibold text-gray-800">Logout</h3>
             <p className="text-sm text-gray-600">Sign out of your account</p>
           </div>
-          <Button variant="outline" className="text-red-600 border-red-600 hover:bg-red-50">
+          <Button onClick={handleLogout} variant="outline" className="text-red-600 border-red-600 hover:bg-red-50">
             <LogOutIcon className="w-4 h-4 mr-2" />
             Logout
           </Button>

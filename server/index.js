@@ -7,7 +7,7 @@ const connectDB = require('./config/db');
 const setupSocketIO = require('./utils/socketManager');
 
 // Load env vars
-dotenv.config();
+dotenv.config({ path: '../.env' });
 
 // Connect to database
 connectDB();

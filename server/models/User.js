@@ -61,6 +61,56 @@ const userSchema = new mongoose.Schema({
   lastLogin: {
     type: Date
   },
+  // Student-specific fields
+  admissionNumber: {
+    type: String,
+    trim: true
+  },
+  class: {
+    type: String,
+    trim: true
+  },
+  stream: {
+    type: String,
+    trim: true
+  },
+  linkedParents: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User'
+  }],
+  // Notification preferences
+  notifications: {
+    assignmentReminders: {
+      type: Boolean,
+      default: true
+    },
+    newGradesAlert: {
+      type: Boolean,
+      default: true
+    },
+    announcements: {
+      type: Boolean,
+      default: true
+    }
+  },
+  // Theme and accessibility
+  theme: {
+    type: String,
+    enum: ['light', 'dark'],
+    default: 'light'
+  },
+  textSize: {
+    type: Number,
+    default: 100,
+    min: 50,
+    max: 200
+  },
+  // Device sessions
+  sessions: [{
+    device: String,
+    loginTime: Date,
+    ipAddress: String
+  }],
   createdAt: {
     type: Date,
     default: Date.now

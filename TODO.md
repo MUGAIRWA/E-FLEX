@@ -1,0 +1,9 @@
+- [x] Add logout functionality to DashboardLayout component
+- [x] Clear localStorage authentication data on logout
+- [x] Navigate to landing page after logout
+- [ ] Test logout in all dashboard portals
+- [x] Add student settings tab with profile info, contact update, password change, notifications, theme/accessibility, device management, and support
+- [x] Update User model with student-specific fields (admission number, class, stream, linked parents, notifications, theme, text size, sessions)
+- [x] Create SettingsTab component for students
+- [x] Add settings tab to student dashboard navigation
+- [x] Update DashboardLayout to include settings tab for students
