@@ -8,6 +8,7 @@ import { Community } from './Student/CommunityTab';
 import { AnnouncementsTab } from './Student/AnnouncementsTab';
 import { SupportTab } from './Student/SupportTab';
 import { Payment } from './Student/Payment';
+// @ts-ignore - no declaration file for SettingsTab.jsx
 import { SettingsTab } from './Student/SettingsTab';
 export function StudentDashboard() {
   const [activeTab, setActiveTab] = useState('overview');
