@@ -1,8 +1,14 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
-import { LoginFormStudent } from '../../components/auth/LoginFormStudent';
-import { RegisterFormStudent } from '../../components/auth/RegisterFormStudent';
+import LoginFormStudent from '../../components/auth/LoginFormStudent';
+import LoginFormTeacher from '../../components/auth/LoginFormTeacher';
+import LoginFormParent from '../../components/auth/LoginFormParent';
+import LoginFormAdmin from '../../components/auth/LoginFormAdmin';
+import RegisterFormStudent from '../../components/auth/RegisterFormStudent';
+import RegisterFormTeacher from '../../components/auth/RegisterFormTeacher';
+import RegisterFormParent from '../../components/auth/RegisterFormParent';
+import RegisterFormAdmin from '../../components/auth/RegisterFormAdmin';
 
 const AuthPage = () => {
   const [isLogin, setIsLogin] = useState(true);
@@ -10,6 +16,10 @@ const AuthPage = () => {
   const [error, setError] = useState('');
   const { login, register } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+
+  // Determine user type from URL path
+  const userType = location.pathname.split('/').pop() || 'student';
 
   const handleLogin = async (formData) => {
     setLoading(true);
@@ -66,15 +76,19 @@ const AuthPage = () => {
           )}
 
           {isLogin ? (
-            <LoginFormStudent
-              onSubmit={handleLogin}
-              loading={loading}
-            />
+            <>
+              {userType === 'student' && <LoginFormStudent onSubmit={handleLogin} loading={loading} />}
+              {userType === 'teacher' && <LoginFormTeacher onSubmit={handleLogin} loading={loading} />}
+              {userType === 'parent' && <LoginFormParent onSubmit={handleLogin} loading={loading} />}
+              {userType === 'admin' && <LoginFormAdmin onSubmit={handleLogin} loading={loading} />}
+            </>
           ) : (
-            <RegisterFormStudent
-              onSubmit={handleRegister}
-              loading={loading}
-            />
+            <>
+              {userType === 'student' && <RegisterFormStudent onSubmit={handleRegister} loading={loading} />}
+              {userType === 'teacher' && <RegisterFormTeacher onSubmit={handleRegister} loading={loading} />}
+              {userType === 'parent' && <RegisterFormParent onSubmit={handleRegister} loading={loading} />}
+              {userType === 'admin' && <RegisterFormAdmin onSubmit={handleRegister} loading={loading} />}
+            </>
           )}
 
           <div className="mt-6">

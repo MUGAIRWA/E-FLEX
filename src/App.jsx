@@ -18,6 +18,10 @@ export function App() {
           <Routes>
             <Route path="/" element={<LandingPage />} />
             <Route path="/auth" element={<AuthPage />} />
+            <Route path="/auth/admin" element={<AuthPage />} />
+            <Route path="/auth/teacher" element={<AuthPage />} />
+            <Route path="/auth/student" element={<AuthPage />} />
+            <Route path="/auth/parent" element={<AuthPage />} />
             <Route
               path="/student/*"
               element={

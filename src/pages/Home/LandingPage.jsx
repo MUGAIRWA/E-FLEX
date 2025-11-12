@@ -9,7 +9,7 @@ export function LandingPage() {
   const navigate = useNavigate();
   const [userType, setUserType] = useState('student');
   const handleGetStarted = () => {
-    navigate('/auth');
+    navigate(`/auth/${userType}`);
   };
 
   const features = [{

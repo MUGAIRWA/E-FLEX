@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { MenuIcon, XIcon, BellIcon } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+// @ts-ignore: no types for JS AuthContext
+import { useAuth } from '../../contexts/AuthContext';
 import { Button } from './Button';
 interface NavbarProps {
   isLoggedIn?: boolean;
@@ -10,6 +12,7 @@ export function Navbar({
   isLoggedIn = false
 }: NavbarProps) {
   const navigate = useNavigate();
+  const { isAuthenticated, user, logout } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
 
   const handleLogin = () => {
@@ -18,6 +21,27 @@ export function Navbar({
 
   const handleGetStarted = () => {
     navigate('/auth');
+  };
+
+  const handleDashboard = () => {
+    const roleRoutes = {
+      admin: '/admin',
+      teacher: '/teacher',
+      student: '/student',
+      parent: '/parent'
+    } as const;
+
+    const role = user?.role;
+    if (typeof role === 'string' && role in roleRoutes) {
+      navigate(roleRoutes[role as keyof typeof roleRoutes]);
+    } else {
+      navigate('/');
+    }
+  };
+
+  const handleLogout = () => {
+    logout();
+    navigate('/');
   };
   return <nav className="bg-white shadow-md sticky top-0 z-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -40,7 +64,7 @@ export function Navbar({
             <a href="#testimonials" className="text-gray-700 hover:text-primary transition-colors">
               Testimonials
             </a>
-            {isLoggedIn ? <div className="flex items-center space-x-4">
+            {isAuthenticated ? <div className="flex items-center space-x-4">
                 <motion.button whileHover={{
               scale: 1.1
             }} className="relative">
@@ -49,8 +73,11 @@ export function Navbar({
                     3
                   </span>
                 </motion.button>
-                <Button variant="primary" size="sm">
+                <Button variant="primary" size="sm" onClick={handleDashboard}>
                   Dashboard
+                </Button>
+                <Button variant="outline" size="sm" onClick={handleLogout}>
+                  Logout
                 </Button>
               </div> : <div className="flex items-center space-x-4">
                 <Button variant="outline" size="sm" onClick={handleLogin}>
@@ -87,12 +114,21 @@ export function Navbar({
             <a href="#testimonials" className="block text-gray-700 hover:text-primary py-2">
               Testimonials
             </a>
-            <Button variant="outline" size="sm" className="w-full" onClick={handleLogin}>
-              Login
-            </Button>
-            <Button variant="primary" size="sm" className="w-full" onClick={handleGetStarted}>
-              Get Started
-            </Button>
+            {isAuthenticated ? <div className="flex flex-col space-y-2">
+                <Button variant="primary" size="sm" className="w-full" onClick={handleDashboard}>
+                  Dashboard
+                </Button>
+                <Button variant="outline" size="sm" className="w-full" onClick={handleLogout}>
+                  Logout
+                </Button>
+              </div> : <div className="flex flex-col space-y-2">
+                <Button variant="outline" size="sm" className="w-full" onClick={handleLogin}>
+                  Login
+                </Button>
+                <Button variant="primary" size="sm" className="w-full" onClick={handleGetStarted}>
+                  Get Started
+                </Button>
+              </div>}
           </div>
         </motion.div>}
     </nav>;

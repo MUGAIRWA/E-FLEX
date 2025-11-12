@@ -55,18 +55,18 @@ export const AuthProvider = ({ children }) => {
     try {
       const response = await axios.post('/api/auth/login', { email, password });
 
-      const { accessToken, refreshToken, user: userData } = response.data;
+      const { token, ...userData } = response.data;
 
-      localStorage.setItem('accessToken', accessToken);
-      localStorage.setItem('refreshToken', refreshToken);
+      localStorage.setItem('accessToken', token);
+      // Note: Backend doesn't return refreshToken yet
 
       setUser(userData);
       setIsAuthenticated(true);
 
       // Set default axios authorization header
-      axios.defaults.headers.common['Authorization'] = `Bearer ${accessToken}`;
+      axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
 
-      return { success: true };
+      return { success: true, user: userData };
     } catch (error) {
       console.error('Login failed:', error);
       return {
@@ -80,16 +80,16 @@ export const AuthProvider = ({ children }) => {
     try {
       const response = await axios.post('/api/auth/register', userData);
 
-      const { accessToken, refreshToken, user: newUser } = response.data;
+      const { token, ...newUser } = response.data;
 
-      localStorage.setItem('accessToken', accessToken);
-      localStorage.setItem('refreshToken', refreshToken);
+      localStorage.setItem('accessToken', token);
+      // Note: Backend doesn't return refreshToken yet
 
       setUser(newUser);
       setIsAuthenticated(true);
 
       // Set default axios authorization header
-      axios.defaults.headers.common['Authorization'] = `Bearer ${accessToken}`;
+      axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
 
       return { success: true };
     } catch (error) {
