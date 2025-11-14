@@ -2,7 +2,7 @@ import axios from 'axios';
 
 // Create axios instance with base configuration
 const api = axios.create({
-  baseURL: (typeof process !== 'undefined' && process.env?.REACT_APP_API_URL) || 'http://localhost:5000/api',
+  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:5000/api',
   headers: {
     'Content-Type': 'application/json',
   },
@@ -61,6 +61,7 @@ export const authAPI = {
   logout: (refreshToken) => api.post('/auth/logout', { refreshToken }),
   refreshToken: (refreshToken) => api.post('/auth/refresh', { refreshToken }),
   getCurrentUser: () => api.get('/auth/me'),
+  updateProfile: (userData) => api.put('/auth/me', userData),
 };
 
 // User Management API (Admin)
@@ -154,6 +155,16 @@ export const parentAPI = {
   getChildAttendance: (childId, params) => api.get(`/parent/children/${childId}/attendance`, { params }),
   getChildGrades: (childId, params) => api.get(`/parent/children/${childId}/grades`, { params }),
   updateSettings: (settings) => api.put('/parent/settings', settings),
+};
+
+// Subject API
+export const subjectAPI = {
+  getSubjects: () => api.get('/subjects'),
+  getSubject: (id) => api.get(`/subjects/${id}`),
+  createSubject: (subjectData) => api.post('/subjects', subjectData),
+  updateSubject: (id, subjectData) => api.put(`/subjects/${id}`, subjectData),
+  deleteSubject: (id) => api.delete(`/subjects/${id}`),
+  addTeacherToSubject: (id, teacherId) => api.post(`/subjects/${id}/teachers`, { teacherId }),
 };
 
 export default api;

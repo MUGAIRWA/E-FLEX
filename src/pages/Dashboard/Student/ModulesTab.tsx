@@ -3,9 +3,11 @@ import { motion } from 'framer-motion';
 import { LockIcon, CheckCircleIcon, PlayCircleIcon, ClockIcon } from 'lucide-react';
 import { Card } from '../../../components/ui/Card';
 import { Button } from '../../../components/ui/Button';
+// @ts-ignore: third-party JS module without type declarations
+import { SUBJECTS } from '../../../constants/subjects';
 export function ModulesTab() {
-  const [selectedSubject, setSelectedSubject] = useState('Mathematics');
-  const subjects = ['Mathematics', 'English', 'Kiswahili', 'Sciences'];
+  const [selectedSubject, setSelectedSubject] = useState<string>(SUBJECTS[0] as string); // Mathematics
+  const subjects: string[] = SUBJECTS.slice(0, 4) as string[]; // Mathematics, English, Kiwahili, Chemistry (first 4 subjects)
   const modules = [{
     week: 1,
     title: 'Introduction to Algebra',
@@ -72,7 +74,7 @@ export function ModulesTab() {
       </div>
       {/* Subject Selector */}
       <div className="flex flex-wrap gap-3">
-        {subjects.map(subject => <motion.button key={subject} whileHover={{
+        {subjects.map((subject: string) => <motion.button key={subject} whileHover={{
         scale: 1.05
       }} whileTap={{
         scale: 0.95

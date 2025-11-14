@@ -3,7 +3,12 @@ import { motion } from 'framer-motion';
 import { UsersIcon, FileTextIcon, ClipboardCheckIcon, BellIcon, TrendingUpIcon, AlertCircleIcon } from 'lucide-react';
 import { Card } from '../../../components/ui/Card';
 import { Button } from '../../../components/ui/Button';
+// @ts-ignore: no types for JS AuthContext module
+import { useAuth } from '../../../contexts/AuthContext';
 export function TeacherOverviewTab() {
+  const { user } = useAuth();
+  const userName = user ? `${user.firstName} ${user.lastName}` : 'Teacher';
+
   const stats = [{
     label: 'Total Students',
     value: '124',
@@ -73,7 +78,7 @@ export function TeacherOverviewTab() {
       y: 0
     }}>
         <h1 className="font-poppins font-bold text-3xl md:text-4xl mb-2 text-gray-800">
-          Welcome back, Ms. Johnson! 👋
+          Welcome back, {userName}! 👋
         </h1>
         <p className="text-gray-600">
           Here is your teaching overview for today

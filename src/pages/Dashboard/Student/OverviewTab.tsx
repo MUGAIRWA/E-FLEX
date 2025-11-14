@@ -5,29 +5,41 @@ import { Card } from '../../../components/ui/Card';
 import { SubjectCard } from '../../../components/dashboard/SubjectCard';
 import { QuoteCard } from '../../../components/dashboard/QuoteCard';
 import { ProgressBar } from '../../../components/dashboard/ProgressBar';
+// @ts-ignore: no types for JS AuthContext module
+import { useAuth } from '../../../contexts/AuthContext';
+// @ts-ignore: no types for JS constants module
+import { SUBJECTS } from '../../../constants/subjects';
+
 export function OverviewTab() {
-  const subjects = [{
-    subject: 'Mathematics',
-    progress: 75,
-    totalModules: 12,
-    completedModules: 9,
-    nextClass: 'Monday, 2:00 PM',
-    color: 'from-primary to-blue-400'
-  }, {
-    subject: 'English',
-    progress: 60,
-    totalModules: 10,
-    completedModules: 6,
-    nextClass: 'Tuesday, 10:00 AM',
-    color: 'from-accent to-purple-400'
-  }, {
-    subject: 'Kiswahili',
-    progress: 85,
-    totalModules: 8,
-    completedModules: 7,
-    nextClass: 'Wednesday, 1:00 PM',
-    color: 'from-success to-green-400'
-  }];
+  const { user } = useAuth();
+  const userName = user ? `${user.firstName} ${user.lastName}` : 'Student';
+
+  const subjects = [
+    {
+      subject: SUBJECTS[0] as string, // Mathematics
+      progress: 75,
+      totalModules: 12,
+      completedModules: 9,
+      nextClass: 'Monday, 2:00 PM',
+      color: 'from-primary to-blue-400'
+    },
+    {
+      subject: SUBJECTS[1] as string, // English
+      progress: 60,
+      totalModules: 10,
+      completedModules: 6,
+      nextClass: 'Tuesday, 10:00 AM',
+      color: 'from-accent to-purple-400'
+    },
+    {
+      subject: SUBJECTS[2] as string, // Kiwahili
+      progress: 85,
+      totalModules: 8,
+      completedModules: 7,
+      nextClass: 'Wednesday, 1:00 PM',
+      color: 'from-success to-green-400'
+    }
+  ];
   const stats = [{
     label: 'Badges Earned',
     value: '12',
@@ -59,7 +71,7 @@ export function OverviewTab() {
       y: 0
     }}>
         <h1 className="font-poppins font-bold text-3xl md:text-4xl mb-2 text-gray-800">
-          Welcome back, John! 👋
+          Welcome back, {userName}! 👋
         </h1>
         <p className="text-gray-600">
           Ready to continue your learning journey?

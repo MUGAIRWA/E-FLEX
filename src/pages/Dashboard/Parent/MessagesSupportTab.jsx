@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { Card } from '../../../components/ui/Card';
 import { Button } from '../../../components/ui/Button';
 import { MessageCircleIcon, HelpCircleIcon, SendIcon, PaperclipIcon, ClockIcon } from 'lucide-react';
+import { SUBJECTS } from '../../../constants/subjects';
 
 export function MessagesSupportTab() {
   const [activeTab, setActiveTab] = useState('teacher-messages');
@@ -18,7 +19,7 @@ export function MessagesSupportTab() {
     {
       id: 1,
       teacher: 'Mr. Kamau',
-      subject: 'Mathematics',
+      subject: SUBJECTS[0], // Mathematics
       lastMessage: 'Please review the algebra homework.',
       timestamp: '2 hours ago',
       unread: true
@@ -26,7 +27,7 @@ export function MessagesSupportTab() {
     {
       id: 2,
       teacher: 'Ms. Njeri',
-      subject: 'English',
+      subject: SUBJECTS[1], // English
       lastMessage: 'Great progress on the essay!',
       timestamp: '1 day ago',
       unread: false

@@ -1,17 +1,15 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { useNavigate } from 'react-router-dom';
 import InputField from '../ui/InputField';
 import { Button } from '../ui/Button';
 
-const LoginFormAdmin = () => {
-  const navigate = useNavigate();
+const LoginFormAdmin = ({ onSubmit, loading }) => {
   const [formData, setFormData] = useState({
     email: '',
     password: ''
   });
   const [errors, setErrors] = useState({});
-  const [isLoading, setIsLoading] = useState(false);
+  
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -44,15 +42,9 @@ const LoginFormAdmin = () => {
       return;
     }
 
-    setIsLoading(true);
-    // Simulate API call
-    setTimeout(() => {
-      setIsLoading(false);
-      // Store auth state (in real app, this would be handled by auth context)
-      localStorage.setItem('userRole', 'admin');
-      localStorage.setItem('isAuthenticated', 'true');
-      navigate('/admin/dashboard');
-    }, 1000);
+    if (typeof onSubmit === 'function') {
+      await onSubmit({ email: formData.email, password: formData.password });
+    }
   };
 
   return (
@@ -95,9 +87,9 @@ const LoginFormAdmin = () => {
         variant="primary"
         size="lg"
         className="w-full"
-        disabled={isLoading}
+        disabled={loading}
       >
-        {isLoading ? 'Logging in...' : 'Login'}
+        {loading ? 'Logging in...' : 'Login'}
       </Button>
     </motion.form>
   );

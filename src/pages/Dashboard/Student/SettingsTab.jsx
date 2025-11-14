@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 // @ts-ignore
 import { useAuth } from '../../../contexts/AuthContext';
 // @ts-ignore
-import { userAPI } from '../../../services/api';
+import { authAPI } from '../../../services/api';
 
 export function SettingsTab() {
   const { user, logout } = useAuth();
@@ -67,7 +67,7 @@ export function SettingsTab() {
     setMessage('');
 
     try {
-      await userAPI.updateUser(user._id, settings);
+      await authAPI.updateProfile(settings);
       setMessage('Settings updated successfully!');
     } catch (error) {
       console.error('Update failed:', error);

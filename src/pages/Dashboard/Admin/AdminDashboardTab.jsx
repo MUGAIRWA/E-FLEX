@@ -3,8 +3,12 @@ import { motion } from 'framer-motion';
 import { UsersIcon, BookOpenIcon, CreditCardIcon, HelpCircleIcon, PlusIcon, FileTextIcon, MessageSquareIcon, TrendingUpIcon, BarChart3Icon, PieChartIcon, LineChartIcon } from 'lucide-react';
 import { Card } from '../../../components/ui/Card';
 import { Button } from '../../../components/ui/Button';
+import { useAuth } from '../../../contexts/AuthContext';
 
 export function AdminDashboardTab() {
+  const { user } = useAuth();
+  const userName = user ? `${user.firstName} ${user.lastName}` : 'Admin';
+
   const [recentActivity, setRecentActivity] = useState([
     'Student Tevin Jr submitted Chemistry Assignment',
     'Payment received from Parent Mugairwa (KSh 500)',
@@ -53,10 +57,14 @@ export function AdminDashboardTab() {
 
   return (
     <div className="space-y-8">
-      <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold text-gray-900">Admin Dashboard</h1>
-        <div className="text-sm text-gray-500">Real-time platform overview</div>
-      </div>
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
+        <h1 className="font-poppins font-bold text-3xl md:text-4xl mb-2 text-gray-800">
+          Welcome back, {userName}! 👋
+        </h1>
+        <p className="text-gray-600 mb-4">
+          Here is your admin overview for today
+        </p>
+      </motion.div>
 
       {/* Top Metrics Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">

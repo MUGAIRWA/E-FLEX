@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { Card } from '../../../components/ui/Card';
 import { Button } from '../../../components/ui/Button';
 import { TrendingUpIcon, DownloadIcon, MessageCircleIcon } from 'lucide-react';
+import { SUBJECTS } from '../../../constants/subjects';
 
 export function ProgressReportTab() {
   const [selectedStudent, setSelectedStudent] = useState('john-doe');
@@ -13,10 +14,10 @@ export function ProgressReportTab() {
   ];
 
   const subjects = [
-    { subject: 'Math', progress: 85, averageScore: 79, lastQuiz: '2 days ago', teacher: 'Mr. Kamau' },
-    { subject: 'English', progress: 70, averageScore: 74, lastQuiz: '3 days ago', teacher: 'Ms. Njeri' },
-    { subject: 'Science', progress: 90, averageScore: 88, lastQuiz: '1 day ago', teacher: 'Dr. Oduya' },
-    { subject: 'History', progress: 65, averageScore: 68, lastQuiz: '5 days ago', teacher: 'Mrs. Wanjiku' }
+    { subject: SUBJECTS[0], progress: 85, averageScore: 79, lastQuiz: '2 days ago', teacher: 'Mr. Kamau' }, // Mathematics
+    { subject: SUBJECTS[1], progress: 70, averageScore: 74, lastQuiz: '3 days ago', teacher: 'Ms. Njeri' }, // English
+    { subject: SUBJECTS[3], progress: 90, averageScore: 88, lastQuiz: '1 day ago', teacher: 'Dr. Oduya' }, // Chemistry (Science)
+    { subject: SUBJECTS[7], progress: 65, averageScore: 68, lastQuiz: '5 days ago', teacher: 'Mrs. Wanjiku' } // History
   ];
 
   return (

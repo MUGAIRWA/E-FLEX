@@ -39,6 +39,13 @@ export function Navbar({
     }
   };
 
+  const getUserDisplayName = () => {
+    if (user && user.firstName && user.lastName) {
+      return `${user.firstName} ${user.lastName}`;
+    }
+    return 'User';
+  };
+
   const handleLogout = () => {
     logout();
     navigate('/');
@@ -73,9 +80,14 @@ export function Navbar({
                     3
                   </span>
                 </motion.button>
-                <Button variant="primary" size="sm" onClick={handleDashboard}>
-                  Dashboard
-                </Button>
+                <div className="flex items-center space-x-2">
+                  <span className="text-sm text-gray-700">
+                    Welcome, {getUserDisplayName()}
+                  </span>
+                  <Button variant="primary" size="sm" onClick={handleDashboard}>
+                    Dashboard
+                  </Button>
+                </div>
                 <Button variant="outline" size="sm" onClick={handleLogout}>
                   Logout
                 </Button>
@@ -115,9 +127,14 @@ export function Navbar({
               Testimonials
             </a>
             {isAuthenticated ? <div className="flex flex-col space-y-2">
-                <Button variant="primary" size="sm" className="w-full" onClick={handleDashboard}>
-                  Dashboard
-                </Button>
+                <div className="flex flex-col space-y-1">
+                  <span className="text-sm text-gray-700 text-center">
+                    Welcome, {getUserDisplayName()}
+                  </span>
+                  <Button variant="primary" size="sm" className="w-full" onClick={handleDashboard}>
+                    Dashboard
+                  </Button>
+                </div>
                 <Button variant="outline" size="sm" className="w-full" onClick={handleLogout}>
                   Logout
                 </Button>

@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { HomeIcon, BookOpenIcon, FileTextIcon, UsersIcon, BellIcon, HelpCircleIcon, MenuIcon, XIcon, LogOutIcon, SettingsIcon, UploadIcon, ClipboardCheckIcon, TrendingUpIcon, CreditCardIcon } from 'lucide-react';
+// @ts-ignore: no types for JS AuthContext
+import { useAuth } from '../../contexts/AuthContext';
 interface DashboardLayoutProps {
   children: React.ReactNode;
   activeTab: string;
@@ -21,6 +23,7 @@ export function DashboardLayout({
   userRole
 }: DashboardLayoutProps) {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
 
@@ -153,7 +156,20 @@ export function DashboardLayout({
   }];
   const tabs = userRole === 'student' ? studentTabs : userRole === 'teacher' ? teacherTabs : userRole === 'parent' ? parentTabs : userRole === 'admin' ? adminTabs : [];
   const getUserInfo = (): UserInfo => {
-    // Try to get user info from localStorage first
+    // Use user data from AuthContext if available
+    if (user && user.firstName && user.lastName) {
+      const fullName = `${user.firstName} ${user.lastName}`;
+      const roleDisplay = userRole === 'admin' ? 'Administrator' : userRole.charAt(0).toUpperCase() + userRole.slice(1);
+      const avatarSeed = userRole === 'admin' ? 'Admin' : userRole.charAt(0).toUpperCase() + userRole.slice(1);
+
+      return {
+        name: fullName,
+        role: roleDisplay,
+        avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${avatarSeed}`
+      };
+    }
+
+    // Try to get user info from localStorage first (fallback)
     const storedName = localStorage.getItem('userName');
     if (storedName) {
       if (userRole === 'teacher') {

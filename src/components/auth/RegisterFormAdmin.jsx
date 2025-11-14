@@ -1,11 +1,10 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../../contexts/AuthContext';
 import InputField from '../ui/InputField';
 import { Button } from '../ui/Button';
 
-const RegisterFormAdmin = () => {
-  const navigate = useNavigate();
+const RegisterFormAdmin = ({ onSubmit, loading }) => {
   const [formData, setFormData] = useState({
     fullName: '',
     email: '',
@@ -47,15 +46,17 @@ const RegisterFormAdmin = () => {
       return;
     }
 
-    setIsLoading(true);
-    // Simulate API call
-    setTimeout(() => {
-      setIsLoading(false);
-      // Store auth state (in real app, this would be handled by auth context)
-      localStorage.setItem('userRole', 'admin');
-      localStorage.setItem('isAuthenticated', 'true');
-      navigate('/admin/dashboard');
-    }, 1000);
+    // Delegate to parent (AuthPage) which uses AuthContext to register
+    if (typeof onSubmit === 'function') {
+      const registrationData = {
+        firstName: formData.fullName.split(' ')[0],
+        lastName: formData.fullName.split(' ').slice(1).join(' '),
+        email: formData.email,
+        password: formData.password,
+        role: 'admin'
+      };
+      await onSubmit(registrationData);
+    }
   };
 
   return (
@@ -103,9 +104,9 @@ const RegisterFormAdmin = () => {
         variant="primary"
         size="lg"
         className="w-full"
-        disabled={isLoading}
+        disabled={loading}
       >
-        {isLoading ? 'Creating Account...' : 'Register'}
+        {loading ? 'Creating Account...' : 'Register'}
       </Button>
     </motion.form>
   );

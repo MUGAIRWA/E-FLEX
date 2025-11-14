@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../../contexts/AuthContext';
 import InputField from '../ui/InputField';
 import { Button } from '../ui/Button';
 
-const RegisterFormTeacher = () => {
-  const navigate = useNavigate();
+const RegisterFormTeacher = ({ onSubmit, loading }) => {
   const [formData, setFormData] = useState({
     fullName: '',
     email: '',
@@ -25,14 +25,21 @@ const RegisterFormTeacher = () => {
   ];
 
   const subjectOptions = [
-    { value: 'mathematics', label: 'Mathematics' },
-    { value: 'english', label: 'English' },
-    { value: 'kiswahili', label: 'Kiswahili' },
-    { value: 'science', label: 'Science' },
-    { value: 'social-studies', label: 'Social Studies' },
-    { value: 'cre', label: 'CRE' },
-    { value: 'history', label: 'History' },
-    { value: 'geography', label: 'Geography' }
+    { value: 'Mathematics', label: 'Mathematics' },
+    { value: 'English', label: 'English' },
+    { value: 'Kiwahili', label: 'Kiwahili' },
+    { value: 'Chemistry', label: 'Chemistry' },
+    { value: 'Biology', label: 'Biology' },
+    { value: 'Physics', label: 'Physics' },
+    { value: 'Geography', label: 'Geography' },
+    { value: 'History', label: 'History' },
+    { value: 'CRE', label: 'CRE' },
+    { value: 'Business', label: 'Business' },
+    { value: 'Agriculture', label: 'Agriculture' },
+    { value: 'Computer', label: 'Computer' },
+    { value: 'Art', label: 'Art' },
+    { value: 'Music', label: 'Music' },
+    { value: 'French', label: 'French' }
   ];
 
   const handleChange = (e) => {
@@ -81,15 +88,21 @@ const RegisterFormTeacher = () => {
       return;
     }
 
-    setIsLoading(true);
-    // Simulate API call
-    setTimeout(() => {
-      setIsLoading(false);
-      // Store auth state (in real app, this would be handled by auth context)
-      localStorage.setItem('userRole', 'teacher');
-      localStorage.setItem('isAuthenticated', 'true');
-      navigate('/teacher/dashboard');
-    }, 1000);
+    // Delegate to parent (AuthPage) which uses AuthContext to register
+    if (typeof onSubmit === 'function') {
+      const registrationData = {
+        firstName: formData.fullName.split(' ')[0],
+        lastName: formData.fullName.split(' ').slice(1).join(' '),
+        email: formData.email,
+        phoneNumber: formData.phone,
+        password: formData.password,
+        role: 'teacher',
+        teacherId: `TCH-${Date.now()}`,
+        subjects: formData.subjects,
+        classesTaught: formData.classesTaught
+      };
+      await onSubmit(registrationData);
+    }
   };
 
   return (
@@ -194,9 +207,9 @@ const RegisterFormTeacher = () => {
         variant="primary"
         size="lg"
         className="w-full"
-        disabled={isLoading}
+        disabled={loading}
       >
-        {isLoading ? 'Creating Account...' : 'Register'}
+        {loading ? 'Creating Account...' : 'Register'}
       </Button>
     </motion.form>
   );

@@ -24,10 +24,10 @@ const ProtectedRoute = ({ children, allowedRoles = [] }) => {
   if (allowedRoles.length > 0 && user && !allowedRoles.includes(user.role)) {
     // Redirect to appropriate dashboard based on user role
     const roleRoutes = {
-      admin: '/admin',
-      teacher: '/teacher',
-      student: '/student',
-      parent: '/parent'
+      admin: '/admin/dashboard',
+      teacher: '/teacher/dashboard',
+      student: '/student/dashboard',
+      parent: '/parent/dashboard'
     };
 
     const redirectPath = roleRoutes[user.role] || '/';

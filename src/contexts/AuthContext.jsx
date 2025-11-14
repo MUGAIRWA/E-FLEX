@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import axios from 'axios';
+import api, { authAPI } from '../services/api';
 
 const AuthContext = createContext();
 
@@ -23,11 +24,13 @@ export const AuthProvider = ({ children }) => {
       const refreshToken = localStorage.getItem('refreshToken');
 
       if (token) {
+        // Set token on both axios instances before making request
+        axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+        api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+
         try {
           // Verify token and get user data
-          const response = await axios.get('/api/auth/me', {
-            headers: { Authorization: `Bearer ${token}` }
-          });
+          const response = await authAPI.getCurrentUser();
           setUser(response.data);
           setIsAuthenticated(true);
         } catch (error) {
@@ -53,18 +56,24 @@ export const AuthProvider = ({ children }) => {
 
   const login = async (email, password) => {
     try {
-      const response = await axios.post('/api/auth/login', { email, password });
+      const response = await authAPI.login({ email, password });
 
       const { token, ...userData } = response.data;
 
       localStorage.setItem('accessToken', token);
       // Note: Backend doesn't return refreshToken yet
 
+      // Set token on both axios instances
+      axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+      api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+
       setUser(userData);
       setIsAuthenticated(true);
 
-      // Set default axios authorization header
-      axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+      // Store user name in localStorage for dashboard display
+      if (userData.firstName && userData.lastName) {
+        localStorage.setItem('userName', `${userData.firstName} ${userData.lastName}`);
+      }
 
       return { success: true, user: userData };
     } catch (error) {
@@ -78,18 +87,24 @@ export const AuthProvider = ({ children }) => {
 
   const register = async (userData) => {
     try {
-      const response = await axios.post('/api/auth/register', userData);
+      const response = await authAPI.register(userData);
 
       const { token, ...newUser } = response.data;
 
       localStorage.setItem('accessToken', token);
       // Note: Backend doesn't return refreshToken yet
 
+      // Set token on both axios instances
+      axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+      api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+
       setUser(newUser);
       setIsAuthenticated(true);
 
-      // Set default axios authorization header
-      axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+      // Store user name in localStorage for dashboard display
+      if (newUser.firstName && newUser.lastName) {
+        localStorage.setItem('userName', `${newUser.firstName} ${newUser.lastName}`);
+      }
 
       return { success: true };
     } catch (error) {
@@ -105,7 +120,7 @@ export const AuthProvider = ({ children }) => {
     try {
       const refreshToken = localStorage.getItem('refreshToken');
       if (refreshToken) {
-        await axios.post('/api/auth/logout', { refreshToken });
+        await authAPI.logout(refreshToken);
       }
     } catch (error) {
       console.error('Logout API call failed:', error);
@@ -115,8 +130,9 @@ export const AuthProvider = ({ children }) => {
     localStorage.removeItem('accessToken');
     localStorage.removeItem('refreshToken');
 
-    // Clear axios authorization header
+    // Clear axios authorization headers
     delete axios.defaults.headers.common['Authorization'];
+    delete api.defaults.headers.common['Authorization'];
 
     // Reset state
     setUser(null);
@@ -131,17 +147,18 @@ export const AuthProvider = ({ children }) => {
     }
 
     try {
-      const response = await axios.post('/api/auth/refresh', { refreshToken });
+      const response = await authAPI.refreshToken(refreshToken);
 
-      const { accessToken, user: userData } = response.data;
+      const { token: accessToken, user: userData } = response.data;
 
       localStorage.setItem('accessToken', accessToken);
 
+      // Set token on both axios instances
+      axios.defaults.headers.common['Authorization'] = `Bearer ${accessToken}`;
+      api.defaults.headers.common['Authorization'] = `Bearer ${accessToken}`;
+
       setUser(userData);
       setIsAuthenticated(true);
-
-      // Update axios authorization header
-      axios.defaults.headers.common['Authorization'] = `Bearer ${accessToken}`;
 
       return accessToken;
     } catch (error) {
@@ -160,6 +177,14 @@ export const AuthProvider = ({ children }) => {
 
         if (error.response?.status === 401 && !originalRequest._retry) {
           originalRequest._retry = true;
+
+          // Only attempt refresh if we actually have a refresh token
+          const refreshToken = localStorage.getItem('refreshToken');
+          if (!refreshToken) {
+            // No refresh token -> ensure logout and reject without throwing from refresh
+            logout();
+            return Promise.reject(new Error('No refresh token available'));
+          }
 
           try {
             await refreshAccessToken();

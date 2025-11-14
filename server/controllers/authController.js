@@ -181,10 +181,75 @@ const getMe = async (req, res) => {
   }
 };
 
+// @desc    Update current user profile
+// @route   PUT /api/auth/me
+// @access  Private
+const updateMe = async (req, res) => {
+  try {
+    const user = await User.findById(req.user._id);
+
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    const {
+      firstName,
+      lastName,
+      email,
+      phoneNumber,
+      address,
+      dateOfBirth,
+      admissionNumber,
+      notifications
+    } = req.body;
+
+    // Check if email is being changed and if it's already taken
+    if (email && email !== user.email) {
+      const emailExists = await User.findOne({ email });
+      if (emailExists) {
+        return res.status(400).json({ message: 'Email already in use' });
+      }
+    }
+
+    // Update basic fields
+    user.firstName = firstName || user.firstName;
+    user.lastName = lastName || user.lastName;
+    user.email = email || user.email;
+    user.phoneNumber = phoneNumber || user.phoneNumber;
+
+    // Update student-specific fields
+    if (user.role === 'student') {
+      if (address !== undefined) user.address = address;
+      if (dateOfBirth !== undefined) user.dateOfBirth = dateOfBirth;
+      if (admissionNumber !== undefined) user.admissionNumber = admissionNumber;
+      if (notifications !== undefined) user.notifications = notifications;
+    }
+
+    const updatedUser = await user.save();
+
+    res.json({
+      _id: updatedUser._id,
+      firstName: updatedUser.firstName,
+      lastName: updatedUser.lastName,
+      email: updatedUser.email,
+      role: updatedUser.role,
+      phoneNumber: updatedUser.phoneNumber,
+      address: updatedUser.address,
+      dateOfBirth: updatedUser.dateOfBirth,
+      admissionNumber: updatedUser.admissionNumber,
+      notifications: updatedUser.notifications
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+};
+
 module.exports = {
   register,
   login,
   refreshToken,
   logout,
-  getMe
+  getMe,
+  updateMe
 };

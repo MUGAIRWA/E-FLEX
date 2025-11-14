@@ -1,17 +1,15 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { useNavigate } from 'react-router-dom';
 import InputField from '../ui/InputField';
 import { Button } from '../ui/Button';
 
-const LoginFormStudent = () => {
-  const navigate = useNavigate();
+const LoginFormStudent = ({ onSubmit, loading }) => {
   const [formData, setFormData] = useState({
     email: '',
     password: ''
   });
   const [errors, setErrors] = useState({});
-  const [isLoading, setIsLoading] = useState(false);
+  
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -44,35 +42,9 @@ const LoginFormStudent = () => {
       return;
     }
 
-    setIsLoading(true);
-    try {
-      const response = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          email: formData.email,
-          password: formData.password,
-        }),
-      });
-
-      const data = await response.json();
-
-      if (response.ok) {
-        // Store auth state
-        localStorage.setItem('userRole', 'student');
-        localStorage.setItem('isAuthenticated', 'true');
-        localStorage.setItem('userToken', data.token);
-        localStorage.setItem('userName', `${data.firstName} ${data.lastName}`);
-        navigate('/student/dashboard');
-      } else {
-        setErrors({ general: data.message || 'Login failed' });
-      }
-    } catch (error) {
-      setErrors({ general: 'Network error. Please try again.' });
-    } finally {
-      setIsLoading(false);
+    // Delegate actual login to parent (AuthPage) which uses AuthContext
+    if (typeof onSubmit === 'function') {
+      await onSubmit({ email: formData.email, password: formData.password });
     }
   };
 
@@ -116,9 +88,9 @@ const LoginFormStudent = () => {
         variant="primary"
         size="lg"
         className="w-full"
-        disabled={isLoading}
+        disabled={loading}
       >
-        {isLoading ? 'Logging in...' : 'Login'}
+        {loading ? 'Logging in...' : 'Login'}
       </Button>
     </motion.form>
   );

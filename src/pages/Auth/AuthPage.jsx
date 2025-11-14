@@ -9,11 +9,13 @@ import RegisterFormStudent from '../../components/auth/RegisterFormStudent';
 import RegisterFormTeacher from '../../components/auth/RegisterFormTeacher';
 import RegisterFormParent from '../../components/auth/RegisterFormParent';
 import RegisterFormAdmin from '../../components/auth/RegisterFormAdmin';
+import RoleSelector from '../../components/ui/RoleSelector';
 
 const AuthPage = () => {
   const [isLogin, setIsLogin] = useState(true);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [selectedRole, setSelectedRole] = useState('student');
   const { login, register } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
@@ -30,10 +32,10 @@ const AuthPage = () => {
     if (result.success) {
       // Redirect based on user role
       const roleRoutes = {
-        admin: '/admin',
-        teacher: '/teacher',
-        student: '/student',
-        parent: '/parent'
+        admin: '/admin/dashboard',
+        teacher: '/teacher/dashboard',
+        student: '/student/dashboard',
+        parent: '/parent/dashboard'
       };
       navigate(roleRoutes[result.user?.role] || '/');
     } else {
@@ -50,8 +52,14 @@ const AuthPage = () => {
     const result = await register(formData);
 
     if (result.success) {
-      setIsLogin(true); // Switch to login after successful registration
-      setError('Registration successful! Please login.');
+      // Redirect based on user role after successful registration
+      const roleRoutes = {
+        admin: '/admin/dashboard',
+        teacher: '/teacher/dashboard',
+        student: '/student/dashboard',
+        parent: '/parent/dashboard'
+      };
+      navigate(roleRoutes[result.user?.role] || '/');
     } else {
       setError(result.message);
     }
@@ -69,6 +77,7 @@ const AuthPage = () => {
 
       <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
         <div className="bg-white py-8 px-4 shadow sm:rounded-lg sm:px-10">
+          <RoleSelector selectedRole={selectedRole} onRoleChange={setSelectedRole} />
           {error && (
             <div className="mb-4 p-4 rounded-md bg-red-50 border border-red-200">
               <p className="text-sm text-red-600">{error}</p>
@@ -77,17 +86,17 @@ const AuthPage = () => {
 
           {isLogin ? (
             <>
-              {userType === 'student' && <LoginFormStudent onSubmit={handleLogin} loading={loading} />}
-              {userType === 'teacher' && <LoginFormTeacher onSubmit={handleLogin} loading={loading} />}
-              {userType === 'parent' && <LoginFormParent onSubmit={handleLogin} loading={loading} />}
-              {userType === 'admin' && <LoginFormAdmin onSubmit={handleLogin} loading={loading} />}
+              {selectedRole === 'student' && <LoginFormStudent onSubmit={handleLogin} loading={loading} />}
+              {selectedRole === 'teacher' && <LoginFormTeacher onSubmit={handleLogin} loading={loading} />}
+              {selectedRole === 'parent' && <LoginFormParent onSubmit={handleLogin} loading={loading} />}
+              {selectedRole === 'admin' && <LoginFormAdmin onSubmit={handleLogin} loading={loading} />}
             </>
           ) : (
             <>
-              {userType === 'student' && <RegisterFormStudent onSubmit={handleRegister} loading={loading} />}
-              {userType === 'teacher' && <RegisterFormTeacher onSubmit={handleRegister} loading={loading} />}
-              {userType === 'parent' && <RegisterFormParent onSubmit={handleRegister} loading={loading} />}
-              {userType === 'admin' && <RegisterFormAdmin onSubmit={handleRegister} loading={loading} />}
+              {selectedRole === 'student' && <RegisterFormStudent onSubmit={handleRegister} loading={loading} />}
+              {selectedRole === 'teacher' && <RegisterFormTeacher onSubmit={handleRegister} loading={loading} />}
+              {selectedRole === 'parent' && <RegisterFormParent onSubmit={handleRegister} loading={loading} />}
+              {selectedRole === 'admin' && <RegisterFormAdmin onSubmit={handleRegister} loading={loading} />}
             </>
           )}
 

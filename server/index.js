@@ -49,6 +49,7 @@ app.use('/api/grades', require('./routes/grades'));
 app.use('/api/messages', require('./routes/messages'));
 app.use('/api/notifications', require('./routes/notifications'));
 app.use('/api/parent', require('./routes/parent'));
+app.use('/api/subjects', require('./routes/subjects'));
 
 // Serve static files from uploads directory
 app.use('/uploads', express.static('uploads'));

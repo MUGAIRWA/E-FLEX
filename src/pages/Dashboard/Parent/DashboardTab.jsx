@@ -3,14 +3,18 @@ import { motion } from 'framer-motion';
 import { Card } from '../../../components/ui/Card';
 import { Button } from '../../../components/ui/Button';
 import { TrendingUpIcon, ClockIcon, BookOpenIcon, CalendarIcon, FileTextIcon } from 'lucide-react';
+import { useAuth } from '../../../contexts/AuthContext';
 
 export function DashboardTab() {
+  const { user } = useAuth();
+  const userName = user ? `${user.firstName} ${user.lastName}` : 'Parent';
+
   return (
     <div className="space-y-6">
       {/* Header */}
       <div className="text-center">
         <h1 className="text-3xl font-bold text-gray-800 mb-2">
-          Welcome back, Mrs. Jane Doe 👋
+          Welcome back, {userName}! 👋
         </h1>
         <p className="text-gray-600">
           Here's how John Doe is performing this week.

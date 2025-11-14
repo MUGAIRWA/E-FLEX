@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { Card } from '../../../components/ui/Card';
 import { Button } from '../../../components/ui/Button';
 import { CreditCardIcon, CheckCircleIcon, ClockIcon, EyeIcon } from 'lucide-react';
+import { SUBJECTS } from '../../../constants/subjects';
 
 export function PaymentsTab() {
   const [showPaymentModal, setShowPaymentModal] = useState(false);
@@ -14,11 +15,11 @@ export function PaymentsTab() {
   };
 
   const subjectPayments = [
-    { subject: 'Math', status: 'paid', amount: 250, date: 'Oct 21', receipt: true },
-    { subject: 'English', status: 'paid', amount: 250, date: 'Oct 21', receipt: true },
-    { subject: 'Science', status: 'pending', amount: 250, date: '—', receipt: false },
-    { subject: 'History', status: 'pending', amount: 250, date: '—', receipt: false },
-    { subject: 'Geography', status: 'paid', amount: 250, date: 'Oct 15', receipt: true }
+    { subject: SUBJECTS[0], status: 'paid', amount: 250, date: 'Oct 21', receipt: true }, // Mathematics
+    { subject: SUBJECTS[1], status: 'paid', amount: 250, date: 'Oct 21', receipt: true }, // English
+    { subject: SUBJECTS[3], status: 'pending', amount: 250, date: '—', receipt: false }, // Chemistry (Science)
+    { subject: SUBJECTS[7], status: 'pending', amount: 250, date: '—', receipt: false }, // History
+    { subject: SUBJECTS[6], status: 'paid', amount: 250, date: 'Oct 15', receipt: true } // Geography
   ];
 
   const handlePayNow = (subject) => {
