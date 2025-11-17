@@ -6,7 +6,7 @@ import { Button } from '../../../components/ui/Button';
 import { AnnouncementModal } from '../../../components/AnnouncementModal';
 // @ts-ignore: no types for JS AuthContext module
 import { useAuth } from '../../../contexts/AuthContext';
-export function TeacherOverviewTab() {
+export function TeacherOverviewTab({ onTabChange }: { onTabChange: (tab: string) => void }) {
   const { user } = useAuth();
   const userName = user ? `${user.firstName} ${user.lastName}` : 'Teacher';
   const [isAnnouncementModalOpen, setIsAnnouncementModalOpen] = useState(false);
@@ -209,7 +209,7 @@ export function TeacherOverviewTab() {
             Quick Actions
           </h3>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <Button variant="primary" className="flex items-center justify-center space-x-2">
+            <Button variant="primary" className="flex items-center justify-center space-x-2" onClick={() => onTabChange('upload')}>
               <FileTextIcon className="w-5 h-5" />
               <span>Create Assignment</span>
             </Button>
@@ -221,7 +221,7 @@ export function TeacherOverviewTab() {
               <BellIcon className="w-5 h-5" />
               <span>Send Announcement</span>
             </Button>
-            <Button variant="outline" className="flex items-center justify-center space-x-2">
+            <Button variant="outline" className="flex items-center justify-center space-x-2" onClick={() => onTabChange('progress')}>
               <TrendingUpIcon className="w-5 h-5" />
               <span>View Progress</span>
             </Button>

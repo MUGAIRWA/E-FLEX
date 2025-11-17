@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { DashboardLayout } from '../../components/dashboard/DashboardLayout';
 import { TeacherOverviewTab } from './Teacher/OverviewTab';
 import { ContentUploadTab } from './Teacher/ContentUploadTab';
-import { GradebookTab } from './Teacher/GradebookTab';
+import { GradebookTab } from './Teacher/GradebookTab.tsx';
 import { StudentProgressTab } from './Teacher/StudentProgressTab';
 import { TeacherAnnouncementsTab } from './Teacher/AnnouncementsTab';
 export function TeacherDashboard() {
@@ -10,7 +10,7 @@ export function TeacherDashboard() {
   const renderContent = () => {
     switch (activeTab) {
       case 'overview':
-        return <TeacherOverviewTab />;
+        return <TeacherOverviewTab onTabChange={setActiveTab} />;
       case 'upload':
         return <ContentUploadTab />;
       case 'gradebook':
@@ -20,7 +20,7 @@ export function TeacherDashboard() {
       case 'announcements':
         return <TeacherAnnouncementsTab />;
       default:
-        return <TeacherOverviewTab />;
+        return <TeacherOverviewTab onTabChange={setActiveTab} />;
     }
   };
   return <DashboardLayout activeTab={activeTab} onTabChange={setActiveTab} userRole="teacher">
