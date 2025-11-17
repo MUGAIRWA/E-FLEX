@@ -48,6 +48,7 @@ app.use('/api/exams', require('./routes/exams'));
 app.use('/api/grades', require('./routes/grades'));
 app.use('/api/messages', require('./routes/messages'));
 app.use('/api/notifications', require('./routes/notifications'));
+app.use('/api/announcements', require('./routes/announcements'));
 app.use('/api/parent', require('./routes/parent'));
 app.use('/api/subjects', require('./routes/subjects'));
 

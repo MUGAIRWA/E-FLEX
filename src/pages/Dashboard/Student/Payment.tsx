@@ -21,7 +21,8 @@ export function Payment(): JSX.Element {
       try {
         const response = await subjectAPI.getSubjects();
         // Map API response to SubjectItem format, limit to first 4
-        const formattedSubjects: SubjectItem[] = response.data
+        const subjectsData = Array.isArray(response.data) ? response.data : [];
+        const formattedSubjects: SubjectItem[] = subjectsData
           .slice(0, 4)
           .map((subject: any, index: number) => ({
             id: index + 1,

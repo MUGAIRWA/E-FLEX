@@ -1,13 +1,15 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { UsersIcon, FileTextIcon, ClipboardCheckIcon, BellIcon, TrendingUpIcon, AlertCircleIcon } from 'lucide-react';
 import { Card } from '../../../components/ui/Card';
 import { Button } from '../../../components/ui/Button';
+import { AnnouncementModal } from '../../../components/AnnouncementModal';
 // @ts-ignore: no types for JS AuthContext module
 import { useAuth } from '../../../contexts/AuthContext';
 export function TeacherOverviewTab() {
   const { user } = useAuth();
   const userName = user ? `${user.firstName} ${user.lastName}` : 'Teacher';
+  const [isAnnouncementModalOpen, setIsAnnouncementModalOpen] = useState(false);
 
   const stats = [{
     label: 'Total Students',
@@ -211,7 +213,11 @@ export function TeacherOverviewTab() {
               <FileTextIcon className="w-5 h-5" />
               <span>Create Assignment</span>
             </Button>
-            <Button variant="outline" className="flex items-center justify-center space-x-2">
+            <Button
+              variant="outline"
+              className="flex items-center justify-center space-x-2"
+              onClick={() => setIsAnnouncementModalOpen(true)}
+            >
               <BellIcon className="w-5 h-5" />
               <span>Send Announcement</span>
             </Button>
@@ -222,5 +228,15 @@ export function TeacherOverviewTab() {
           </div>
         </Card>
       </motion.div>
+
+      {/* Announcement Modal */}
+      <AnnouncementModal
+        isOpen={isAnnouncementModalOpen}
+        onClose={() => setIsAnnouncementModalOpen(false)}
+        onSuccess={() => {
+          // Could add a success message or refresh data here
+          console.log('Announcement created successfully');
+        }}
+      />
     </div>;
 }

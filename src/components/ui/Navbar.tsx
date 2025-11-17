@@ -5,12 +5,7 @@ import { useNavigate } from 'react-router-dom';
 // @ts-ignore: no types for JS AuthContext
 import { useAuth } from '../../contexts/AuthContext';
 import { Button } from './Button';
-interface NavbarProps {
-  isLoggedIn?: boolean;
-}
-export function Navbar({
-  isLoggedIn = false
-}: NavbarProps) {
+export function Navbar(): JSX.Element {
   const navigate = useNavigate();
   const { isAuthenticated, user, logout } = useAuth();
   const [isOpen, setIsOpen] = useState(false);

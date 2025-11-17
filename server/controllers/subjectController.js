@@ -1,4 +1,5 @@
 const Subject = require('../models/Subject');
+const User = require('../models/User');
 
 // @desc    Get all subjects
 // @route   GET /api/subjects
@@ -116,6 +117,48 @@ const deleteSubject = async (req, res) => {
   }
 };
 
+// @desc    Remove teacher from subject
+// @route   DELETE /api/subjects/:id/teachers/:teacherId
+// @access  Private (Admin/Subject Creator)
+const removeTeacherFromSubject = async (req, res) => {
+  try {
+    const { teacherId } = req.params;
+    const subject = await Subject.findById(req.params.id);
+
+    if (!subject) {
+      return res.status(404).json({ message: 'Subject not found' });
+    }
+
+    // Check if user is creator or admin
+    if (subject.createdBy.toString() !== req.user._id.toString() && req.user.role !== 'admin') {
+      return res.status(403).json({ message: 'Not authorized to modify this subject' });
+    }
+
+    // Check if teacher is assigned to this subject
+    if (!subject.teachers.includes(teacherId)) {
+      return res.status(400).json({ message: 'Teacher not assigned to this subject' });
+    }
+
+    // Remove teacher from subject
+    subject.teachers = subject.teachers.filter(id => id.toString() !== teacherId);
+    await subject.save();
+
+    // Remove subject from teacher's subjects array
+    const teacher = await User.findById(teacherId);
+    if (teacher) {
+      teacher.subjects = teacher.subjects.filter(sub => sub !== subject.name);
+      await teacher.save();
+    }
+
+    const updatedSubject = await subject.populate('createdBy', 'firstName lastName email').populate('teachers', 'firstName lastName email');
+
+    res.json(updatedSubject);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+};
+
 // @desc    Add teacher to subject
 // @route   POST /api/subjects/:id/teachers
 // @access  Private (Admin/Subject Creator)
@@ -138,8 +181,20 @@ const addTeacherToSubject = async (req, res) => {
       return res.status(400).json({ message: 'Teacher already assigned to this subject' });
     }
 
+    // Verify teacher exists and is a teacher
+    const teacher = await User.findById(teacherId);
+    if (!teacher || teacher.role !== 'teacher') {
+      return res.status(400).json({ message: 'Invalid teacher' });
+    }
+
     subject.teachers.push(teacherId);
     await subject.save();
+
+    // Add subject to teacher's subjects array if not already present
+    if (!teacher.subjects.includes(subject.name)) {
+      teacher.subjects.push(subject.name);
+      await teacher.save();
+    }
 
     const updatedSubject = await subject.populate('createdBy', 'firstName lastName email').populate('teachers', 'firstName lastName email');
 
@@ -156,5 +211,6 @@ module.exports = {
   createSubject,
   updateSubject,
   deleteSubject,
-  addTeacherToSubject
+  addTeacherToSubject,
+  removeTeacherFromSubject
 };

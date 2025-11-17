@@ -24,6 +24,11 @@ const createCourse = async (req, res) => {
       return res.status(400).json({ message: 'Invalid teacher' });
     }
 
+    // Verify teacher teaches the subject
+    if (!teacherUser.subjects.includes(subject)) {
+      return res.status(400).json({ message: 'Teacher does not teach this subject' });
+    }
+
     const course = await Course.create({
       title,
       description,

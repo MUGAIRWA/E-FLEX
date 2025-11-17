@@ -148,6 +148,15 @@ export const notificationAPI = {
   deleteNotification: (id) => api.delete(`/notifications/${id}`),
 };
 
+// Announcement API
+export const announcementAPI = {
+  getAnnouncements: (params) => api.get('/announcements', { params }),
+  getAnnouncement: (id) => api.get(`/announcements/${id}`),
+  createAnnouncement: (announcementData) => api.post('/announcements', announcementData),
+  updateAnnouncement: (id, announcementData) => api.put(`/announcements/${id}`, announcementData),
+  deleteAnnouncement: (id) => api.delete(`/announcements/${id}`),
+};
+
 // Parent API
 export const parentAPI = {
   getChildren: () => api.get('/parent/children'),
