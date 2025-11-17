@@ -1,0 +1,4 @@
+- Rename src/contexts/SocketContext.jsx to src/contexts/SocketContext.tsx
+- Add TypeScript types to SocketContext.tsx
+- Remove src/contexts/SocketContext.d.ts
+- Fixed import.meta.env issue by removing VITE_API_URL usage

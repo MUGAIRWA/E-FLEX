@@ -2,9 +2,28 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import axios from 'axios';
 import api, { authAPI } from '../services/api';
 
-const AuthContext = createContext();
+export interface User {
+  _id: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  role: 'student' | 'teacher' | 'parent' | 'admin';
+  // Add other user properties as needed
+}
 
-export const useAuth = () => {
+export interface AuthContextType {
+  user: User | null;
+  loading: boolean;
+  isAuthenticated: boolean;
+  login: (email: string, password: string) => Promise<{ success: boolean; user?: User; message?: string }>;
+  register: (userData: any) => Promise<{ success: boolean; message?: string }>;
+  logout: () => Promise<void>;
+  refreshAccessToken: () => Promise<string>;
+}
+
+const AuthContext = createContext<AuthContextType | undefined>(undefined);
+
+export const useAuth = (): AuthContextType => {
   const context = useContext(AuthContext);
   if (!context) {
     throw new Error('useAuth must be used within an AuthProvider');
@@ -12,8 +31,8 @@ export const useAuth = () => {
   return context;
 };
 
-export const AuthProvider = ({ children }) => {
-  const [user, setUser] = useState(null);
+export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
 
@@ -31,7 +50,7 @@ export const AuthProvider = ({ children }) => {
         try {
           // Verify token and get user data
           const response = await authAPI.getCurrentUser();
-          setUser(response.data);
+          setUser(response.data.data);
           setIsAuthenticated(true);
         } catch (error) {
           console.error('Token verification failed:', error);
@@ -54,11 +73,11 @@ export const AuthProvider = ({ children }) => {
     initializeAuth();
   }, []);
 
-  const login = async (email, password) => {
+  const login = async (email: string, password: string) => {
     try {
-      const response = await authAPI.login({ email, password });
+      const response = await authAPI.login({ email, password, role: 'student' }); // Default role, adjust as needed
 
-      const { token, ...userData } = response.data;
+      const { token, ...userData } = response.data.data;
 
       localStorage.setItem('accessToken', token);
       // Note: Backend doesn't return refreshToken yet
@@ -67,16 +86,16 @@ export const AuthProvider = ({ children }) => {
       axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
       api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
 
-      setUser(userData);
+      setUser(userData as User);
       setIsAuthenticated(true);
 
       // Store user name in localStorage for dashboard display
-      if (userData.firstName && userData.lastName) {
-        localStorage.setItem('userName', `${userData.firstName} ${userData.lastName}`);
+      if ((userData as User).firstName && (userData as User).lastName) {
+        localStorage.setItem('userName', `${(userData as User).firstName} ${(userData as User).lastName}`);
       }
 
-      return { success: true, user: userData };
-    } catch (error) {
+      return { success: true, user: userData as User };
+    } catch (error: any) {
       console.error('Login failed:', error);
       return {
         success: false,
@@ -85,11 +104,11 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  const register = async (userData) => {
+  const register = async (userData: any) => {
     try {
       const response = await authAPI.register(userData);
 
-      const { token, ...newUser } = response.data;
+      const { token, ...newUser } = response.data.data;
 
       localStorage.setItem('accessToken', token);
       // Note: Backend doesn't return refreshToken yet
@@ -111,7 +130,7 @@ export const AuthProvider = ({ children }) => {
       console.error('Registration failed:', error);
       return {
         success: false,
-        message: error.response?.data?.message || 'Registration failed'
+        message: (error as any).response?.data?.message || 'Registration failed'
       };
     }
   };
@@ -120,7 +139,7 @@ export const AuthProvider = ({ children }) => {
     try {
       const refreshToken = localStorage.getItem('refreshToken');
       if (refreshToken) {
-        await authAPI.logout(refreshToken);
+        await authAPI.logout({ refreshToken });
       }
     } catch (error) {
       console.error('Logout API call failed:', error);
@@ -147,9 +166,9 @@ export const AuthProvider = ({ children }) => {
     }
 
     try {
-      const response = await authAPI.refreshToken(refreshToken);
+      const response = await authAPI.refreshToken({ refreshToken });
 
-      const { token: accessToken, user: userData } = response.data;
+      const { token: accessToken, user: userData } = response.data.data;
 
       localStorage.setItem('accessToken', accessToken);
 
@@ -157,7 +176,7 @@ export const AuthProvider = ({ children }) => {
       axios.defaults.headers.common['Authorization'] = `Bearer ${accessToken}`;
       api.defaults.headers.common['Authorization'] = `Bearer ${accessToken}`;
 
-      setUser(userData);
+      setUser(userData as User);
       setIsAuthenticated(true);
 
       return accessToken;

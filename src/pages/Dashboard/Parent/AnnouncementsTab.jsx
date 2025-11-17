@@ -4,6 +4,8 @@ import { Card } from '../../../components/ui/Card';
 import { Button } from '../../../components/ui/Button';
 import { BellIcon, UserIcon, CalendarIcon, AlertCircleIcon } from 'lucide-react';
 import { announcementAPI } from '../../../services/api';
+import { useSocket } from '../../../contexts/SocketContext';
+import { useAuth } from '../../../contexts/AuthContext';
 
 export function AnnouncementsTab() {
   const [announcements, setAnnouncements] = useState([]);
@@ -12,10 +14,36 @@ export function AnnouncementsTab() {
   const [filter, setFilter] = useState('all');
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(false);
+  const { socket } = useSocket();
+  const { user } = useAuth();
 
   useEffect(() => {
     fetchAnnouncements();
   }, [filter, page]);
+
+  // Listen for real-time announcements
+  useEffect(() => {
+    if (socket) {
+      const handleAnnouncement = (announcement) => {
+        if (canViewAnnouncement(user, announcement)) {
+          setAnnouncements(prev => {
+            // Check if announcement already exists to avoid duplicates
+            const exists = prev.some(a => a._id === announcement._id);
+            if (!exists) {
+              return [announcement, ...prev];
+            }
+            return prev;
+          });
+        }
+      };
+
+      socket.on('announcement', handleAnnouncement);
+
+      return () => {
+        socket.off('announcement', handleAnnouncement);
+      };
+    }
+  }, [socket, user]);
 
   const fetchAnnouncements = async () => {
     try {
@@ -26,15 +54,15 @@ export function AnnouncementsTab() {
       }
 
       const response = await announcementAPI.getAnnouncements(params);
-      const data = response.data.data;
+      const data = response.data || {};
 
       if (page === 1) {
-        setAnnouncements(data.announcements);
+        setAnnouncements(data.announcements || []);
       } else {
-        setAnnouncements(prev => [...prev, ...data.announcements]);
+        setAnnouncements(prev => [...prev, ...(data.announcements || [])]);
       }
 
-      setHasMore(data.announcements.length === 10 && data.currentPage < data.totalPages);
+      setHasMore((data.announcements || []).length === params.limit && (data.currentPage || page) < (data.totalPages || 0));
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to load announcements');
     } finally {
@@ -67,6 +95,21 @@ export function AnnouncementsTab() {
       return <AlertCircleIcon className="w-4 h-4 text-red-500" />;
     }
     return null;
+  };
+
+  // Helper function to check if user can view announcement
+  const canViewAnnouncement = (user, announcement) => {
+    if (!user || !announcement) return false;
+
+    if (user.role === 'admin') return true;
+
+    if (announcement.targetAudience === 'all') return true;
+
+    if (user.role === 'student' && announcement.targetAudience === 'students') return true;
+    if (user.role === 'parent' && announcement.targetAudience === 'parents') return true;
+    if (user.role === 'teacher' && (announcement.targetAudience === 'teachers' || announcement.targetAudience === 'students' || announcement.targetAudience === 'parents')) return true;
+
+    return false;
   };
 
   if (loading && announcements.length === 0) {

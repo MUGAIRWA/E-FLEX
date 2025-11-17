@@ -1,10 +1,33 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { io } from 'socket.io-client';
+import { io, Socket } from 'socket.io-client';
 import { useAuth } from './AuthContext';
 
-const SocketContext = createContext();
+interface Notification {
+  title: string;
+  message: string;
+  // Add other notification properties as needed
+}
 
-export const useSocket = () => {
+interface Message {
+  conversationId: string;
+  // Add other message properties as needed
+}
+
+interface SocketContextType {
+  socket: Socket | null;
+  isConnected: boolean;
+  notifications: Notification[];
+  messages: Message[];
+  joinRoom: (roomId: string) => void;
+  leaveRoom: (roomId: string) => void;
+  sendMessage: (messageData: any) => void;
+  markNotificationsAsRead: () => void;
+  markMessagesAsRead: (conversationId: string) => void;
+}
+
+const SocketContext = createContext<SocketContextType | undefined>(undefined);
+
+export const useSocket = (): SocketContextType => {
   const context = useContext(SocketContext);
   if (!context) {
     throw new Error('useSocket must be used within a SocketProvider');
@@ -12,17 +35,17 @@ export const useSocket = () => {
   return context;
 };
 
-export const SocketProvider = ({ children }) => {
-  const [socket, setSocket] = useState(null);
+export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const [socket, setSocket] = useState<Socket | null>(null);
   const [isConnected, setIsConnected] = useState(false);
-  const [notifications, setNotifications] = useState([]);
-  const [messages, setMessages] = useState([]);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [messages, setMessages] = useState<Message[]>([]);
   const { user, isAuthenticated } = useAuth();
 
   useEffect(() => {
     if (isAuthenticated && user) {
       // Initialize socket connection
-      const newSocket = io(import.meta.env.VITE_API_URL || 'http://localhost:5000', {
+      const newSocket = io('http://localhost:5000', {
         auth: {
           token: localStorage.getItem('accessToken')
         }
@@ -76,6 +99,12 @@ export const SocketProvider = ({ children }) => {
         // Handle attendance notification
       });
 
+      // Announcement events
+      newSocket.on('announcement', (data) => {
+        console.log('New announcement:', data);
+        // Handle announcement notification
+      });
+
       setSocket(newSocket);
 
       return () => {
@@ -97,19 +126,19 @@ export const SocketProvider = ({ children }) => {
     }
   }, []);
 
-  const joinRoom = (roomId) => {
+  const joinRoom = (roomId: string) => {
     if (socket && isConnected) {
       socket.emit('join_room', roomId);
     }
   };
 
-  const leaveRoom = (roomId) => {
+  const leaveRoom = (roomId: string) => {
     if (socket && isConnected) {
       socket.emit('leave_room', roomId);
     }
   };
 
-  const sendMessage = (messageData) => {
+  const sendMessage = (messageData: any) => {
     if (socket && isConnected) {
       socket.emit('send_message', messageData);
     }
@@ -119,7 +148,7 @@ export const SocketProvider = ({ children }) => {
     setNotifications([]);
   };
 
-  const markMessagesAsRead = (conversationId) => {
+  const markMessagesAsRead = (conversationId: string) => {
     setMessages(prev => prev.filter(msg => msg.conversationId !== conversationId));
   };
 

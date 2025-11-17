@@ -6,7 +6,10 @@ const User = require('../models/User');
 // @access  Private
 const getAnnouncements = async (req, res) => {
   try {
-    const { page = 1, limit = 20, type, targetAudience } = req.params;
+    const { page = 1, limit = 20, type, targetAudience } = req.query;
+    // Ensure numeric values
+    const pageNum = parseInt(page, 10) || 1;
+    const limitNum = parseInt(limit, 10) || 20;
 
     // Build query based on user role
     let query = { isActive: true };
@@ -41,15 +44,15 @@ const getAnnouncements = async (req, res) => {
     const announcements = await Announcement.find(query)
       .populate('postedBy', 'firstName lastName role')
       .sort({ createdAt: -1 })
-      .limit(limit * 1)
-      .skip((page - 1) * limit);
+      .limit(limitNum)
+      .skip((pageNum - 1) * limitNum);
 
     const total = await Announcement.countDocuments(query);
 
     res.json({
       announcements,
-      totalPages: Math.ceil(total / limit),
-      currentPage: page,
+      totalPages: Math.ceil(total / limitNum),
+      currentPage: pageNum,
       total
     });
   } catch (error) {
@@ -103,10 +106,29 @@ const createAnnouncement = async (req, res) => {
 
     // Emit socket event for real-time announcement
     const io = req.app.get('io');
-    io.emit('announcement', {
-      ...announcement.toObject(),
-      postedBy: announcement.postedBy
-    });
+
+    // Emit to appropriate rooms based on targetAudience
+    if (targetAudience === 'all') {
+      io.emit('announcement', {
+        ...announcement.toObject(),
+        postedBy: announcement.postedBy
+      });
+    } else if (targetAudience === 'students') {
+      io.to('student').emit('announcement', {
+        ...announcement.toObject(),
+        postedBy: announcement.postedBy
+      });
+    } else if (targetAudience === 'parents') {
+      io.to('parent').emit('announcement', {
+        ...announcement.toObject(),
+        postedBy: announcement.postedBy
+      });
+    } else if (targetAudience === 'teachers') {
+      io.to('teacher').emit('announcement', {
+        ...announcement.toObject(),
+        postedBy: announcement.postedBy
+      });
+    }
 
     res.status(201).json(announcement);
   } catch (error) {
