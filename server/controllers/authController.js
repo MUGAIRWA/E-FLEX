@@ -13,8 +13,8 @@ const generateToken = (id) => {
 
 // Generate Refresh Token
 const generateRefreshToken = (id) => {
-  return jwt.sign({ id }, process.env.JWT_REFRESH_SECRET, {
-    expiresIn: process.env.JWT_REFRESH_EXPIRE || '7d'
+  return jwt.sign({ id }, process.env.REFRESH_TOKEN_SECRET, {
+    expiresIn: process.env.JWT_EXPIRES_IN|| '30d'
   });
 };
 
@@ -34,6 +34,8 @@ const register = async (req, res) => {
       childEmail,
       teacherId,
       subjects,
+      classesTaught,
+      streamsTaught,
       admissionNumber,
       class: userClass,
       stream,
@@ -68,18 +70,31 @@ const register = async (req, res) => {
     if (role === 'teacher') {
       if (teacherId) userData.teacherId = teacherId;
       if (subjects) userData.subjects = subjects;
+      if (classesTaught) {
+        userData.classesTaught = classesTaught;
+      }
     }
 
     const user = await User.create(userData);
 
     if (user) {
+      // Generate tokens
+      const accessToken = generateToken(user._id);
+      const refreshToken = generateRefreshToken(user._id);
+
+      // Store refresh token
+      refreshTokens.push(refreshToken);
+
       res.status(201).json({
         _id: user._id,
         firstName: user.firstName,
         lastName: user.lastName,
         email: user.email,
         role: user.role,
-        token: generateToken(user._id)
+        subjects: user.subjects,
+        classesTaught: user.classesTaught,
+        token: accessToken,
+        refreshToken: refreshToken
       });
     } else {
       res.status(400).json({ message: 'Invalid user data' });
@@ -105,14 +120,30 @@ const login = async (req, res) => {
       user.lastLogin = Date.now();
       await user.save();
 
-      res.json({
+      // Generate tokens
+      const accessToken = generateToken(user._id);
+      const refreshToken = generateRefreshToken(user._id);
+
+      // Store refresh token
+      refreshTokens.push(refreshToken);
+
+      const responseData = {
         _id: user._id,
         firstName: user.firstName,
         lastName: user.lastName,
         email: user.email,
         role: user.role,
-        token: generateToken(user._id)
-      });
+        token: accessToken,
+        refreshToken: refreshToken
+      };
+
+      // Add teacher-specific fields
+      if (user.role === 'teacher') {
+        responseData.subjects = user.subjects;
+        responseData.classesTaught = user.classesTaught;
+      }
+
+      res.json(responseData);
     } else {
       res.status(401).json({ message: 'Invalid email or password' });
     }
@@ -137,13 +168,14 @@ const refreshToken = async (req, res) => {
       return res.status(403).json({ message: 'Invalid refresh token' });
     }
 
-    jwt.verify(token, process.env.JWT_REFRESH_SECRET, (err, decoded) => {
+    jwt.verify(token, process.env.REFRESH_TOKEN_SECRET, async (err, decoded) => {
       if (err) {
         return res.status(403).json({ message: 'Invalid refresh token' });
       }
 
       const newAccessToken = generateToken(decoded.id);
-      res.json({ token: newAccessToken });
+      const user = await User.findById(decoded.id).select('-password');
+      res.json({ token: newAccessToken, user });
     });
   } catch (error) {
     console.error(error);
@@ -174,7 +206,34 @@ const logout = async (req, res) => {
 const getMe = async (req, res) => {
   try {
     const user = await User.findById(req.user._id).select('-password').populate('linkedParents', 'firstName lastName email');
-    res.json(user);
+
+    const responseData = {
+      _id: user._id,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      email: user.email,
+      role: user.role,
+      phoneNumber: user.phoneNumber,
+      studentId: user.studentId,
+      childEmail: user.childEmail,
+      teacherId: user.teacherId,
+      subjects: user.subjects,
+      classesTaught: user.classesTaught,
+      admissionNumber: user.admissionNumber,
+      class: user.class,
+      stream: user.stream,
+      linkedParents: user.linkedParents,
+      profileImage: user.profileImage,
+      isActive: user.isActive,
+      lastLogin: user.lastLogin,
+      notifications: user.notifications,
+      theme: user.theme,
+      textSize: user.textSize,
+      sessions: user.sessions,
+      createdAt: user.createdAt
+    };
+
+    res.json(responseData);
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: 'Server error', error: error.message });

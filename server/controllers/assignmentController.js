@@ -102,7 +102,26 @@ const getAssignments = async (req, res) => {
     let query = {};
 
     if (req.user.role === 'teacher') {
-      query.teacher = req.user._id;
+      // Find assignments where teacher is assigned or teaches relevant classes/streams
+      const teacher = await User.findById(req.user._id);
+      const courses = await Course.find().populate('students');
+      const relevantCourseIds = [];
+
+      for (const course of courses) {
+        const studentsInCourse = course.students;
+        const relevantStudents = await User.find({
+          _id: { $in: studentsInCourse },
+          role: 'student',
+          class: { $in: teacher.classesTaught || [] },
+          ...(teacher.streamsTaught && teacher.streamsTaught.length > 0 ? { stream: { $in: teacher.streamsTaught } } : {})
+        });
+
+        if (relevantStudents.length > 0 || course.teacher.toString() === req.user._id.toString()) {
+          relevantCourseIds.push(course._id);
+        }
+      }
+
+      query.course = { $in: relevantCourseIds };
     } else if (req.user.role === 'student') {
       // Find courses student is enrolled in
       const studentCourses = await Course.find({ students: req.user._id }).select('_id');
@@ -155,8 +174,23 @@ const getAssignment = async (req, res) => {
       if (!course.students.includes(req.user._id)) {
         return res.status(403).json({ message: 'Not authorized to access this assignment' });
       }
-    } else if (req.user.role === 'teacher' && assignment.teacher.toString() !== req.user._id.toString()) {
-      return res.status(403).json({ message: 'Not authorized to access this assignment' });
+    } else if (req.user.role === 'teacher') {
+      // Check if teacher teaches the class/stream of the assignment
+      const teacher = await User.findById(req.user._id);
+      const course = await Course.findById(assignment.course).populate('students');
+      const studentsInCourse = course.students;
+
+      // Check if any student in the course is in teacher's classes/streams
+      const relevantStudents = await User.find({
+        _id: { $in: studentsInCourse },
+        role: 'student',
+        class: { $in: teacher.classesTaught || [] },
+        ...(teacher.streamsTaught && teacher.streamsTaught.length > 0 ? { stream: { $in: teacher.streamsTaught } } : {})
+      });
+
+      if (relevantStudents.length === 0 && assignment.teacher.toString() !== req.user._id.toString()) {
+        return res.status(403).json({ message: 'Not authorized to access this assignment' });
+      }
     }
 
     res.json(assignment);
@@ -225,8 +259,12 @@ const gradeAssignment = async (req, res) => {
       return res.status(404).json({ message: 'Assignment not found' });
     }
 
-    if (assignment.teacher.toString() !== req.user._id.toString()) {
-      return res.status(403).json({ message: 'Not authorized to grade this assignment' });
+    // Check if teacher teaches the class/stream of the student
+    const teacher = await User.findById(req.user._id);
+    const student = await User.findById(studentId);
+    if (!teacher.classesTaught.includes(student.class) ||
+        (teacher.streamsTaught && teacher.streamsTaught.length > 0 && !teacher.streamsTaught.includes(student.stream))) {
+      return res.status(403).json({ message: 'Not authorized to grade this student' });
     }
 
     const { studentId } = req.params;
@@ -275,7 +313,19 @@ const updateAssignment = async (req, res) => {
       return res.status(404).json({ message: 'Assignment not found' });
     }
 
-    if (assignment.teacher.toString() !== req.user._id.toString()) {
+    // Check if teacher teaches the class/stream of the assignment
+    const teacher = await User.findById(req.user._id);
+    const course = await Course.findById(assignment.course).populate('students');
+    const studentsInCourse = course.students;
+
+    const relevantStudents = await User.find({
+      _id: { $in: studentsInCourse },
+      role: 'student',
+      class: { $in: teacher.classesTaught || [] },
+      ...(teacher.streamsTaught && teacher.streamsTaught.length > 0 ? { stream: { $in: teacher.streamsTaught } } : {})
+    });
+
+    if (relevantStudents.length === 0 && assignment.teacher.toString() !== req.user._id.toString()) {
       return res.status(403).json({ message: 'Not authorized to update this assignment' });
     }
 

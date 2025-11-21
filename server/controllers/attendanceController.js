@@ -15,8 +15,12 @@ const markAttendance = async (req, res) => {
       return res.status(404).json({ message: 'Course not found' });
     }
 
-    if (course.teacher.toString() !== req.user._id.toString()) {
-      return res.status(403).json({ message: 'Not authorized to mark attendance for this course' });
+    // Check if teacher teaches the student's class/stream
+    const teacher = await User.findById(req.user._id);
+    const student = await User.findById(studentId);
+    if (!teacher.classesTaught.includes(student.class) ||
+        (teacher.streamsTaught && teacher.streamsTaught.length > 0 && !teacher.streamsTaught.includes(student.stream))) {
+      return res.status(403).json({ message: 'Not authorized to mark attendance for this student' });
     }
 
     // Verify student is enrolled
@@ -184,7 +188,14 @@ const bulkMarkAttendance = async (req, res) => {
       return res.status(404).json({ message: 'Course not found' });
     }
 
-    if (course.teacher.toString() !== req.user._id.toString()) {
+    // Check if teacher teaches the classes/streams of students in this course
+    const teacher = await User.findById(req.user._id);
+    const courseStudents = await User.find({ _id: { $in: course.students }, role: 'student' });
+    const relevantStudents = courseStudents.filter(student =>
+      teacher.classesTaught.includes(student.class) ||
+      (teacher.streamsTaught && teacher.streamsTaught.length > 0 && teacher.streamsTaught.includes(student.stream))
+    );
+    if (relevantStudents.length === 0 && course.teacher.toString() !== req.user._id.toString()) {
       return res.status(403).json({ message: 'Not authorized to mark attendance for this course' });
     }
 
@@ -237,9 +248,11 @@ const updateAttendance = async (req, res) => {
       return res.status(404).json({ message: 'Attendance record not found' });
     }
 
-    // Check if teacher owns the course
-    const course = await Course.findById(attendance.course);
-    if (course.teacher.toString() !== req.user._id.toString()) {
+    // Check if teacher teaches the student's class/stream
+    const teacher = await User.findById(req.user._id);
+    const student = await User.findById(attendance.student);
+    if (!teacher.classesTaught.includes(student.class) ||
+        (teacher.streamsTaught && teacher.streamsTaught.length > 0 && !teacher.streamsTaught.includes(student.stream))) {
       return res.status(403).json({ message: 'Not authorized to update this attendance' });
     }
 

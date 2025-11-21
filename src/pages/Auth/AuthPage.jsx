@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { useAuth } from '../../contexts/AuthContext';
+import { useAuth } from '../../contexts/AuthContext.tsx';
 import LoginFormStudent from '../../components/auth/LoginFormStudent';
 import LoginFormTeacher from '../../components/auth/LoginFormTeacher';
 import LoginFormParent from '../../components/auth/LoginFormParent';

@@ -3,7 +3,9 @@ import { motion } from 'framer-motion';
 import { UploadIcon, FileTextIcon, VideoIcon, FileIcon, ClipboardListIcon, CheckCircleIcon } from 'lucide-react';
 import { Card } from '../../../components/ui/Card';
 import { Button } from '../../../components/ui/Button';
+import { useAuth } from '../../../contexts/AuthContext';
 export function ContentUploadTab() {
+  const { user } = useAuth();
   const [selectedContentType, setSelectedContentType] = useState<string>('notes');
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const [showSuccess, setShowSuccess] = useState(false);
@@ -97,10 +99,11 @@ export function ContentUploadTab() {
                 Subject
               </label>
               <select className="w-full px-4 py-3 rounded-lg border-2 border-gray-200 focus:border-primary focus:outline-none transition-colors">
-                <option>Mathematics</option>
-                <option>English</option>
-                <option>Kiswahili</option>
-                <option>Sciences</option>
+                {user?.subjects?.map((subject: string, index: number) => (
+                  <option key={index} value={subject}>
+                    {subject}
+                  </option>
+                ))}
               </select>
             </div>
             <div>
@@ -108,10 +111,24 @@ export function ContentUploadTab() {
                 Class/Stream
               </label>
               <select className="w-full px-4 py-3 rounded-lg border-2 border-gray-200 focus:border-primary focus:outline-none transition-colors">
-                <option>Form 3A</option>
-                <option>Form 3B</option>
-                <option>Form 2A</option>
-                <option>Form 4A</option>
+                {user?.classesTaught?.map((classItem, index) => {
+                  if (typeof classItem === 'string') {
+                    // Old format: classesTaught is array of strings, streams from streamsTaught
+                    const stream = user.streamsTaught?.[index] || '';
+                    return (
+                      <option key={index} value={`${classItem} ${stream}`}>
+                        {classItem} {stream}
+                      </option>
+                    );
+                  } else {
+                    // New format: classesTaught is array of objects
+                    return (
+                      <option key={index} value={`${classItem.class} ${classItem.stream}`}>
+                        {classItem.class} {classItem.stream}
+                      </option>
+                    );
+                  }
+                })}
               </select>
             </div>
             <div>

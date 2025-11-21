@@ -48,7 +48,22 @@ const userSchema = new mongoose.Schema({
     unique: true
   },
   subjects: [{
-    type: String
+    type: String,
+    trim: true
+  }],
+  classesTaught: [{
+    class: {
+      type: String,
+      trim: true
+    },
+    stream: {
+      type: String,
+      trim: true
+    }
+  }],
+  streamsTaught: [{
+    type: String,
+    trim: true
   }],
   profileImage: {
     type: String,

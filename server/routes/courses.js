@@ -7,7 +7,9 @@ const {
   updateCourse,
   enrollStudent,
   removeStudent,
-  deleteCourse
+  deleteCourse,
+  uploadMaterial,
+  materialUpload
 } = require('../controllers/courseController');
 const { protect, authorize } = require('../middleware/auth');
 
@@ -17,6 +19,7 @@ router.post('/', authorize('admin'), createCourse);
 router.get('/', getCourses);
 router.get('/:id', getCourse);
 router.put('/:id', authorize('admin', 'teacher'), updateCourse);
+router.post('/:id/materials', authorize('teacher'), materialUpload.single('file'), uploadMaterial);
 router.post('/:id/enroll', authorize('admin', 'teacher'), enrollStudent);
 router.delete('/:id/students/:studentId', authorize('admin', 'teacher'), removeStudent);
 router.delete('/:id', authorize('admin'), deleteCourse);

@@ -1,6 +1,35 @@
 const Exam = require('../models/Exam');
 const Course = require('../models/Course');
 const Grade = require('../models/Grade');
+const multer = require('multer');
+const path = require('path');
+
+// Configure multer for exam file uploads
+const examStorage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, 'uploads/exams/');
+  },
+  filename: (req, file, cb) => {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    cb(null, file.fieldname + '-' + uniqueSuffix + path.extname(file.originalname));
+  }
+});
+
+const examUpload = multer({
+  storage: examStorage,
+  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB limit per file
+  fileFilter: (req, file, cb) => {
+    const allowedTypes = /pdf|doc|docx|ppt|pptx|txt|rtf/;
+    const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
+    const mimetype = allowedTypes.test(file.mimetype);
+
+    if (mimetype && extname) {
+      return cb(null, true);
+    } else {
+      cb(new Error('Invalid file type. Only documents and presentations are allowed.'));
+    }
+  }
+});
 
 // @desc    Create exam
 // @route   POST /api/exams
@@ -283,11 +312,76 @@ const deleteExam = async (req, res) => {
   }
 };
 
+// @desc    Create exam with file upload
+// @route   POST /api/exams/upload
+// @access  Private/Teacher
+const createExamWithFile = async (req, res) => {
+  try {
+    const {
+      title,
+      description,
+      course,
+      examDate,
+      duration,
+      totalMarks,
+      instructions
+    } = req.body;
+
+    // Verify course exists and teacher owns it
+    const courseDoc = await Course.findById(course);
+    if (!courseDoc) {
+      return res.status(404).json({ message: 'Course not found' });
+    }
+
+    if (courseDoc.teacher.toString() !== req.user._id.toString()) {
+      return res.status(403).json({ message: 'Not authorized to create exams for this course' });
+    }
+
+    const exam = await Exam.create({
+      title,
+      description,
+      course,
+      teacher: req.user._id,
+      examDate: new Date(examDate),
+      duration,
+      totalMarks,
+      instructions,
+      attachments: req.files ? req.files.map(file => ({
+        filename: file.filename,
+        originalName: file.originalname,
+        url: `/uploads/exams/${file.filename}`
+      })) : []
+    });
+
+    if (exam) {
+      // Emit notification to students
+      const io = req.app.get('io');
+      courseDoc.students.forEach(studentId => {
+        io.to(studentId.toString()).emit('notification', {
+          title: 'New Quiz Uploaded',
+          message: `New quiz "${title}" has been uploaded in ${courseDoc.title}`,
+          type: 'warning',
+          link: `/student/exams/${exam._id}`
+        });
+      });
+
+      res.status(201).json(exam);
+    } else {
+      res.status(400).json({ message: 'Invalid exam data' });
+    }
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+};
+
 module.exports = {
   createExam,
   getExams,
   getExam,
   submitExamResult,
   updateExam,
-  deleteExam
+  deleteExam,
+  createExamWithFile,
+  examUpload
 };

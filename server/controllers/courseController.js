@@ -1,5 +1,34 @@
 const Course = require('../models/Course');
 const User = require('../models/User');
+const multer = require('multer');
+const path = require('path');
+
+// Configure multer for material uploads
+const materialStorage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, 'uploads/materials/');
+  },
+  filename: (req, file, cb) => {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    cb(null, file.fieldname + '-' + uniqueSuffix + path.extname(file.originalname));
+  }
+});
+
+const materialUpload = multer({
+  storage: materialStorage,
+  limits: { fileSize: 50 * 1024 * 1024 }, // 50MB limit
+  fileFilter: (req, file, cb) => {
+    const allowedTypes = /jpeg|jpg|png|gif|pdf|doc|docx|ppt|pptx|mp4|avi|mov/;
+    const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
+    const mimetype = allowedTypes.test(file.mimetype);
+
+    if (mimetype && extname) {
+      return cb(null, true);
+    } else {
+      cb(new Error('Invalid file type'));
+    }
+  }
+});
 
 // @desc    Create course
 // @route   POST /api/courses
@@ -260,6 +289,54 @@ const deleteCourse = async (req, res) => {
   }
 };
 
+// @desc    Upload material to course
+// @route   POST /api/courses/:id/materials
+// @access  Private/Teacher
+const uploadMaterial = async (req, res) => {
+  try {
+    const course = await Course.findById(req.params.id);
+
+    if (!course) {
+      return res.status(404).json({ message: 'Course not found' });
+    }
+
+    if (course.teacher.toString() !== req.user._id.toString()) {
+      return res.status(403).json({ message: 'Not authorized to upload materials to this course' });
+    }
+
+    const { title } = req.body;
+
+    if (!req.file) {
+      return res.status(400).json({ message: 'No file uploaded' });
+    }
+
+    const material = {
+      title: title || req.file.originalname,
+      url: `/uploads/materials/${req.file.filename}`,
+      uploadedAt: Date.now()
+    };
+
+    course.materials.push(material);
+    await course.save();
+
+    // Emit notification to students
+    const io = req.app.get('io');
+    course.students.forEach(studentId => {
+      io.to(studentId.toString()).emit('notification', {
+        title: 'New Material Uploaded',
+        message: `New material "${material.title}" has been uploaded to ${course.title}`,
+        type: 'info',
+        link: `/student/courses/${course._id}`
+      });
+    });
+
+    res.status(201).json(material);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+};
+
 module.exports = {
   createCourse,
   getCourses,
@@ -267,5 +344,7 @@ module.exports = {
   updateCourse,
   enrollStudent,
   removeStudent,
-  deleteCourse
+  deleteCourse,
+  uploadMaterial,
+  materialUpload
 };

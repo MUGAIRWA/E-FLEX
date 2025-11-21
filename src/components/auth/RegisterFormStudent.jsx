@@ -27,9 +27,12 @@ const RegisterFormStudent = () => {
   ];
 
   const streamOptions = [
-    { value: 'a', label: 'Stream A' },
-    { value: 'b', label: 'Stream B' },
-    { value: 'c', label: 'Stream C' }
+    { value: 'Blue', label: 'Blue' },
+    { value: 'Yellow', label: 'Yellow' },
+    { value: 'Green', label: 'Green' },
+    { value: 'Red', label: 'Red' },
+    { value: 'White', label: 'White' },
+    { value: 'Pink', label: 'Pink' }
   ];
 
   const handleChange = (e) => {
@@ -50,6 +53,7 @@ const RegisterFormStudent = () => {
   const validateForm = () => {
     const newErrors = {};
     if (!formData.fullName.trim()) newErrors.fullName = 'Full name is required';
+    else if (formData.fullName.trim().split(' ').length < 2) newErrors.fullName = 'Please enter both first and last name';
     if (!formData.admissionNumber.trim()) newErrors.admissionNumber = 'Admission number is required';
     if (!formData.email) newErrors.email = 'Email is required';
     else if (!/\S+@\S+\.\S+/.test(formData.email)) newErrors.email = 'Email is invalid';

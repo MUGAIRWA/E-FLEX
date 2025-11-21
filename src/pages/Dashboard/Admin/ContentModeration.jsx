@@ -1,14 +1,31 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { BookOpenIcon, CheckIcon, XIcon, EditIcon, FilterIcon, SearchIcon } from 'lucide-react';
 import { Card } from '../../../components/ui/Card';
 import { Button } from '../../../components/ui/Button';
+import { userAPI } from '../../../services/api';
 
 export function ContentModeration() {
   const [selectedType, setSelectedType] = useState('all');
   const [selectedSubject, setSelectedSubject] = useState('all');
   const [selectedTeacher, setSelectedTeacher] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
+  const [teachers, setTeachers] = useState([]);
+  const [loadingTeachers, setLoadingTeachers] = useState(true);
+
+  useEffect(() => {
+    const fetchTeachers = async () => {
+      try {
+        const response = await userAPI.getTeachers();
+        setTeachers(response.data);
+      } catch (err) {
+        console.error('Error fetching teachers:', err);
+      } finally {
+        setLoadingTeachers(false);
+      }
+    };
+    fetchTeachers();
+  }, []);
 
   const mockData = [
     {
@@ -61,7 +78,7 @@ export function ContentModeration() {
   const filteredData = mockData.filter(item => {
     const matchesType = selectedType === 'all' || item.type.toLowerCase() === selectedType;
     const matchesSubject = selectedSubject === 'all' || item.subject.toLowerCase() === selectedSubject;
-    const matchesTeacher = selectedTeacher === 'all' || item.uploadedBy.toLowerCase().includes(selectedTeacher);
+    const matchesTeacher = selectedTeacher === 'all' || item.uploadedBy.toLowerCase() === selectedTeacher.toLowerCase();
     const matchesSearch = item.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          item.uploadedBy.toLowerCase().includes(searchTerm.toLowerCase());
     return matchesType && matchesSubject && matchesTeacher && matchesSearch;
@@ -136,11 +153,11 @@ export function ContentModeration() {
             className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
           >
             <option value="all">All Teachers</option>
-            <option value="ms. sarah wilson">Ms. Sarah Wilson</option>
-            <option value="mr. david brown">Mr. David Brown</option>
-            <option value="ms. emma davis">Ms. Emma Davis</option>
-            <option value="mr. john smith">Mr. John Smith</option>
-            <option value="ms. lisa johnson">Ms. Lisa Johnson</option>
+            {teachers.map((teacher) => (
+              <option key={teacher._id} value={`${teacher.firstName} ${teacher.lastName}`}>
+                {teacher.firstName} {teacher.lastName}
+              </option>
+            ))}
           </select>
         </div>
       </Card>

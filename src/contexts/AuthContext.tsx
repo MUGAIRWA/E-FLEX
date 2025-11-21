@@ -8,6 +8,9 @@ export interface User {
   lastName: string;
   email: string;
   role: 'student' | 'teacher' | 'parent' | 'admin';
+  subjects?: string[];
+  classesTaught?: string[] | { class: string; stream: string }[];
+  streamsTaught?: string[];
   // Add other user properties as needed
 }
 
@@ -15,7 +18,7 @@ export interface AuthContextType {
   user: User | null;
   loading: boolean;
   isAuthenticated: boolean;
-  login: (email: string, password: string) => Promise<{ success: boolean; user?: User; message?: string }>;
+  login: (email: string, password: string, role?: string) => Promise<{ success: boolean; user?: User; message?: string }>;
   register: (userData: any) => Promise<{ success: boolean; message?: string }>;
   logout: () => Promise<void>;
   refreshAccessToken: () => Promise<string>;
@@ -50,7 +53,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         try {
           // Verify token and get user data
           const response = await authAPI.getCurrentUser();
-          setUser(response.data.data);
+          setUser(response.data as unknown as User);
           setIsAuthenticated(true);
         } catch (error) {
           console.error('Token verification failed:', error);
@@ -75,9 +78,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const login = async (email: string, password: string) => {
     try {
-      const response = await authAPI.login({ email, password, role: 'student' }); // Default role, adjust as needed
+      const response = await authAPI.login({ email, password });
 
-      const { token, ...userData } = response.data.data;
+      const { token, ...userData } = response.data as any;
 
       localStorage.setItem('accessToken', token);
       // Note: Backend doesn't return refreshToken yet
@@ -108,7 +111,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       const response = await authAPI.register(userData);
 
-      const { token, ...newUser } = response.data.data;
+      const { token, ...newUser } = response.data.data as any;
 
       localStorage.setItem('accessToken', token);
       // Note: Backend doesn't return refreshToken yet
@@ -117,12 +120,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
       api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
 
-      setUser(newUser);
+      setUser(newUser as User);
       setIsAuthenticated(true);
 
       // Store user name in localStorage for dashboard display
-      if (newUser.firstName && newUser.lastName) {
-        localStorage.setItem('userName', `${newUser.firstName} ${newUser.lastName}`);
+      if ((newUser as User).firstName && (newUser as User).lastName) {
+        localStorage.setItem('userName', `${(newUser as User).firstName} ${(newUser as User).lastName}`);
       }
 
       return { success: true };
@@ -168,7 +171,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       const response = await authAPI.refreshToken({ refreshToken });
 
-      const { token: accessToken, user: userData } = response.data.data;
+      const { token: accessToken, user: userData } = response.data as any;
 
       localStorage.setItem('accessToken', accessToken);
 

@@ -59,7 +59,7 @@ export const authAPI = {
   login: (credentials) => api.post('/auth/login', credentials),
   register: (userData) => api.post('/auth/register', userData),
   logout: (refreshToken) => api.post('/auth/logout', { refreshToken }),
-  refreshToken: (refreshToken) => api.post('/auth/refresh', { refreshToken }),
+  refreshToken: (refreshToken) => axios.post('/api/auth/refresh', { refreshToken }),
   getCurrentUser: () => api.get('/auth/me'),
   updateProfile: (userData) => api.put('/auth/me', userData),
 };
@@ -74,6 +74,7 @@ export const userAPI = {
   getStudents: (params) => api.get('/users/students', { params }),
   getTeachers: (params) => api.get('/users/teachers', { params }),
   getParents: (params) => api.get('/users/parents', { params }),
+  getUserStats: () => api.get('/users/stats'),
 };
 
 // Course API

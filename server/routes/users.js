@@ -5,20 +5,24 @@ const {
   createTeacher,
   createParent,
   getUsers,
+  getUserStats,
   updateUser,
   deleteUser
 } = require('../controllers/userManagementController');
+
 const { protect, authorize } = require('../middleware/auth');
 
-// All routes require authentication and admin role
+// All routes require admin access
 router.use(protect);
 router.use(authorize('admin'));
 
+router.route('/').get(getUsers);
+router.route('/stats').get(getUserStats);
+router.route('/:id').put(updateUser).delete(deleteUser);
+
+// Role-specific creation routes
 router.post('/students', createStudent);
 router.post('/teachers', createTeacher);
 router.post('/parents', createParent);
-router.get('/', getUsers);
-router.put('/:id', updateUser);
-router.delete('/:id', deleteUser);
 
 module.exports = router;

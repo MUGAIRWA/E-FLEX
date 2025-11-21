@@ -172,6 +172,30 @@ const createParent = async (req, res) => {
   }
 };
 
+// @desc    Get user stats
+// @route   GET /api/users/stats
+// @access  Private/Admin
+const getUserStats = async (req, res) => {
+  try {
+    const totalUsers = await User.countDocuments();
+    const students = await User.countDocuments({ role: 'student' });
+    const teachers = await User.countDocuments({ role: 'teacher' });
+    const parents = await User.countDocuments({ role: 'parent' });
+    const admins = await User.countDocuments({ role: 'admin' });
+
+    res.json({
+      totalUsers,
+      students,
+      teachers,
+      parents,
+      admins
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+};
+
 // @desc    Get all users
 // @route   GET /api/users
 // @access  Private/Admin
@@ -303,6 +327,7 @@ module.exports = {
   createTeacher,
   createParent,
   getUsers,
+  getUserStats,
   updateUser,
   deleteUser
 };

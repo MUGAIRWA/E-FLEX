@@ -75,6 +75,15 @@ const examSchema = new mongoose.Schema({
       ref: 'User'
     }
   }],
+  attachments: [{
+    filename: String,
+    originalName: String,
+    url: String,
+    uploadedAt: {
+      type: Date,
+      default: Date.now
+    }
+  }],
   isActive: {
     type: Boolean,
     default: true

@@ -1,54 +1,111 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { UsersIcon, SearchIcon, FilterIcon, EditIcon, TrashIcon, UserPlusIcon, EyeIcon } from 'lucide-react';
 import { Card } from '../../../components/ui/Card';
 import { Button } from '../../../components/ui/Button';
+import { userAPI } from '../../../services/api';
+import { useAuth } from '../../../contexts/AuthContext';
 
 export function UserManagement() {
+  const { user } = useAuth();
   const [activeTab, setActiveTab] = useState('students');
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedRole, setSelectedRole] = useState('all');
   const [selectedStatus, setSelectedStatus] = useState('all');
+  const [users, setUsers] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [userStats, setUserStats] = useState({
+    totalStudents: 0,
+    totalTeachers: 0,
+    totalParents: 0,
+    totalAdmins: 0
+  });
 
   const tabs = [
-    { id: 'students', label: 'Students', count: 1250 },
-    { id: 'teachers', label: 'Teachers', count: 45 },
-    { id: 'parents', label: 'Parents', count: 980 },
-    { id: 'admins', label: 'Admins', count: 5 }
+    { id: 'students', label: 'Students', count: userStats.totalStudents },
+    { id: 'teachers', label: 'Teachers', count: userStats.totalTeachers },
+    { id: 'parents', label: 'Parents', count: userStats.totalParents },
+    { id: 'admins', label: 'Admins', count: userStats.totalAdmins }
   ];
 
-  const mockData = {
-    students: [
-      { id: 1, name: 'John Doe', email: 'john@example.com', role: 'Student', class: 'Form 3', stream: 'Blue', linkedParent: 'Jane Doe', status: 'Active' },
-      { id: 2, name: 'Jane Smith', email: 'jane@example.com', role: 'Student', class: 'Form 2', stream: 'Yellow', linkedParent: 'Bob Smith', status: 'Active' },
-      { id: 3, name: 'Mike Johnson', email: 'mike@example.com', role: 'Student', class: 'Form 4', stream: 'Red', linkedParent: 'Sarah Johnson', status: 'Suspended' }
-    ],
-    teachers: [
-      { id: 4, name: 'Ms. Sarah Wilson', email: 'sarah@example.com', role: 'Teacher', subject: 'Mathematics', classes: ['Form 1', 'Form 2'], studentsCount: 85, status: 'Active' },
-      { id: 5, name: 'Mr. David Brown', email: 'david@example.com', role: 'Teacher', subject: 'English', classes: ['Form 3', 'Form 4'], studentsCount: 92, status: 'Active' }
-    ],
-    parents: [
-      { id: 6, name: 'Mrs. Jane Doe', email: 'jane.doe@example.com', role: 'Parent', children: ['John Doe'], status: 'Active' },
-      { id: 7, name: 'Mr. Bob Smith', email: 'bob@example.com', role: 'Parent', children: ['Jane Smith', 'Tom Smith'], status: 'Active' }
-    ],
-    admins: [
-      { id: 8, name: 'Admin User', email: 'admin@example.com', role: 'Admin', permissions: 'Full Access', status: 'Active' }
-    ]
+  useEffect(() => {
+    fetchUserStats();
+  }, []);
+
+  useEffect(() => {
+    fetchUsers();
+  }, [activeTab, currentPage, searchTerm, selectedRole, selectedStatus]);
+
+  const fetchUserStats = async () => {
+    try {
+      const response = await userAPI.getUserStats();
+      setUserStats(response.data);
+    } catch (err) {
+      console.error('Error fetching user stats:', err);
+    }
   };
 
-  const getCurrentData = () => {
-    return mockData[activeTab] || [];
+  const fetchUsers = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const params = {
+        page: currentPage,
+        limit: 10
+      };
+
+      if (activeTab !== 'all') {
+        params.role = activeTab.slice(0, -1); // Remove 's' from plural
+      }
+
+      if (searchTerm) {
+        params.search = searchTerm;
+      }
+
+      if (selectedStatus !== 'all') {
+        params.status = selectedStatus;
+      }
+
+      const response = await userAPI.getUsers(params);
+      setUsers(response.data.users);
+      setTotalPages(response.data.totalPages);
+    } catch (err) {
+      setError('Failed to fetch users');
+      console.error('Error fetching users:', err);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const filteredData = getCurrentData().filter(item => {
-    const matchesSearch = item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         item.email.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesRole = selectedRole === 'all' || item.role.toLowerCase() === selectedRole;
-    const matchesStatus = selectedStatus === 'all' || item.status.toLowerCase() === selectedStatus;
+  const filteredData = users.filter(user => {
+    const matchesSearch = user.firstName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         user.lastName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         user.email.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesRole = selectedRole === 'all' || user.role.toLowerCase() === selectedRole;
+    const matchesStatus = selectedStatus === 'all' || (selectedStatus === 'active' ? user.isActive : !user.isActive);
     return matchesSearch && matchesRole && matchesStatus;
   });
 
   const renderTable = () => {
+    if (loading) {
+      return (
+        <div className="flex justify-center items-center py-8">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+        </div>
+      );
+    }
+
+    if (error) {
+      return (
+        <div className="text-center py-8 text-red-600">
+          {error}
+        </div>
+      );
+    }
+
     if (activeTab === 'students') {
       return (
         <div className="overflow-x-auto">
@@ -65,26 +122,32 @@ export function UserManagement() {
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
               {filteredData.map((student) => (
-                <tr key={student.id}>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{student.name}</td>
+                <tr key={student._id}>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                    {student.firstName} {student.lastName}
+                  </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{student.email}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{student.class} {student.stream}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{student.linkedParent}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    {student.class} {student.stream}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    {student.linkedParents?.length > 0 ? student.linkedParents.map(p => `${p.firstName} ${p.lastName}`).join(', ') : 'None'}
+                  </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                      student.status === 'Active' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                      student.isActive ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
                     }`}>
-                      {student.status}
+                      {student.isActive ? 'Active' : 'Inactive'}
                     </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
-                    <Button size="sm" variant="outline" onClick={() => console.log('Edit', student.id)}>
+                    <Button size="sm" variant="outline" onClick={() => console.log('Edit', student._id)}>
                       <EditIcon className="w-4 h-4" />
                     </Button>
-                    <Button size="sm" variant="outline" onClick={() => console.log('View', student.id)}>
+                    <Button size="sm" variant="outline" onClick={() => console.log('View', student._id)}>
                       <EyeIcon className="w-4 h-4" />
                     </Button>
-                    <Button size="sm" variant="outline" onClick={() => console.log('Delete', student.id)}>
+                    <Button size="sm" variant="outline" onClick={() => console.log('Delete', student._id)}>
                       <TrashIcon className="w-4 h-4" />
                     </Button>
                   </td>
@@ -103,32 +166,36 @@ export function UserManagement() {
             <thead className="bg-gray-50">
               <tr>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Subject</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Classes</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Students</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Teacher ID</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Subjects</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
               {filteredData.map((teacher) => (
-                <tr key={teacher.id}>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{teacher.name}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{teacher.subject}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{teacher.classes.join(', ')}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{teacher.studentsCount}</td>
+                <tr key={teacher._id}>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                    {teacher.firstName} {teacher.lastName}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{teacher.email}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{teacher.teacherId || 'N/A'}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    {teacher.subjects?.join(', ') || 'N/A'}
+                  </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                      teacher.status === 'Active' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                      teacher.isActive ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
                     }`}>
-                      {teacher.status}
+                      {teacher.isActive ? 'Active' : 'Inactive'}
                     </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
-                    <Button size="sm" variant="outline" onClick={() => console.log('Edit', teacher.id)}>
+                    <Button size="sm" variant="outline" onClick={() => console.log('Edit', teacher._id)}>
                       <EditIcon className="w-4 h-4" />
                     </Button>
-                    <Button size="sm" variant="outline" onClick={() => console.log('View', teacher.id)}>
+                    <Button size="sm" variant="outline" onClick={() => console.log('View', teacher._id)}>
                       <EyeIcon className="w-4 h-4" />
                     </Button>
                   </td>
@@ -156,25 +223,27 @@ export function UserManagement() {
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
             {filteredData.map((user) => (
-              <tr key={user.id}>
-                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{user.name}</td>
+              <tr key={user._id}>
+                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                  {user.firstName} {user.lastName}
+                </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{user.email}</td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{user.role}</td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 capitalize">{user.role}</td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                  {user.children ? user.children.join(', ') : user.permissions || 'N/A'}
+                  {user.role === 'parent' ? (user.childEmail || 'N/A') : 'N/A'}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
                   <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                    user.status === 'Active' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                    user.isActive ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
                   }`}>
-                    {user.status}
+                    {user.isActive ? 'Active' : 'Inactive'}
                   </span>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
-                  <Button size="sm" variant="outline" onClick={() => console.log('Edit', user.id)}>
+                  <Button size="sm" variant="outline" onClick={() => console.log('Edit', user._id)}>
                     <EditIcon className="w-4 h-4" />
                   </Button>
-                  <Button size="sm" variant="outline" onClick={() => console.log('View', user.id)}>
+                  <Button size="sm" variant="outline" onClick={() => console.log('View', user._id)}>
                     <EyeIcon className="w-4 h-4" />
                   </Button>
                 </td>
@@ -185,6 +254,17 @@ export function UserManagement() {
       </div>
     );
   };
+
+  if (!user || user.role !== 'admin') {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold text-gray-900 mb-4">Access Denied</h1>
+          <p className="text-gray-600">You do not have permission to access this page.</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -202,7 +282,10 @@ export function UserManagement() {
           {tabs.map((tab) => (
             <button
               key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
+              onClick={() => {
+                setActiveTab(tab.id);
+                setCurrentPage(1);
+              }}
               className={`py-2 px-1 border-b-2 font-medium text-sm ${
                 activeTab === tab.id
                   ? 'border-primary text-primary'
@@ -248,7 +331,7 @@ export function UserManagement() {
           >
             <option value="all">All Status</option>
             <option value="active">Active</option>
-            <option value="suspended">Suspended</option>
+            <option value="inactive">Inactive</option>
           </select>
         </div>
       </Card>
@@ -257,6 +340,29 @@ export function UserManagement() {
       <Card className="p-6">
         {renderTable()}
       </Card>
+
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className="flex justify-center space-x-2">
+          <Button
+            variant="outline"
+            onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+            disabled={currentPage === 1}
+          >
+            Previous
+          </Button>
+          <span className="px-4 py-2">
+            Page {currentPage} of {totalPages}
+          </span>
+          <Button
+            variant="outline"
+            onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+            disabled={currentPage === totalPages}
+          >
+            Next
+          </Button>
+        </div>
+      )}
     </div>
   );
 }

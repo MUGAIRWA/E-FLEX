@@ -23,9 +23,11 @@ const getStudentGrades = async (req, res) => {
     }
 
     if (req.user.role === 'teacher') {
-      // Verify teacher teaches the student
-      const courses = await Course.find({ teacher: req.user._id, students: studentId });
-      if (courses.length === 0) {
+      // Check if teacher teaches the student's class/stream
+      const teacher = await User.findById(req.user._id);
+      const student = await User.findById(studentId);
+      if (!teacher.classesTaught.includes(student.class) ||
+          (teacher.streamsTaught && teacher.streamsTaught.length > 0 && !teacher.streamsTaught.includes(student.stream))) {
         return res.status(403).json({ message: 'Not authorized to view these grades' });
       }
     }
@@ -129,8 +131,12 @@ const addGrade = async (req, res) => {
       return res.status(404).json({ message: 'Course not found' });
     }
 
-    if (course.teacher.toString() !== req.user._id.toString()) {
-      return res.status(403).json({ message: 'Not authorized to add grades for this course' });
+    // Check if teacher teaches the student's class/stream
+    const teacher = await User.findById(req.user._id);
+    const student = await User.findById(studentId);
+    if (!teacher.classesTaught.includes(student.class) ||
+        (teacher.streamsTaught && teacher.streamsTaught.length > 0 && !teacher.streamsTaught.includes(student.stream))) {
+      return res.status(403).json({ message: 'Not authorized to add grades for this student' });
     }
 
     // Verify student is enrolled
@@ -192,9 +198,11 @@ const updateGrade = async (req, res) => {
       return res.status(404).json({ message: 'Grade record not found' });
     }
 
-    // Verify teacher owns the course
-    const course = await Course.findById(grade.course);
-    if (course.teacher.toString() !== req.user._id.toString()) {
+    // Check if teacher teaches the student's class/stream
+    const teacher = await User.findById(req.user._id);
+    const student = await User.findById(grade.student);
+    if (!teacher.classesTaught.includes(student.class) ||
+        (teacher.streamsTaught && teacher.streamsTaught.length > 0 && !teacher.streamsTaught.includes(student.stream))) {
       return res.status(403).json({ message: 'Not authorized to update this grade' });
     }
 

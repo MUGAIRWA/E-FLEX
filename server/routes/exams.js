@@ -6,13 +6,16 @@ const {
   getExam,
   submitExamResult,
   updateExam,
-  deleteExam
+  deleteExam,
+  createExamWithFile,
+  examUpload
 } = require('../controllers/examController');
 const { protect, authorize } = require('../middleware/auth');
 
 router.use(protect);
 
 router.post('/', authorize('teacher'), createExam);
+router.post('/upload', authorize('teacher'), examUpload.array('files', 5), createExamWithFile);
 router.get('/', getExams);
 router.get('/:id', getExam);
 router.post('/:id/submit', authorize('teacher'), submitExamResult);

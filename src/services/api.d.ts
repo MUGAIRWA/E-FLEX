@@ -9,7 +9,7 @@ interface ApiResponse<T = any> {
 
 // Auth API
 export interface AuthAPI {
-  login: (credentials: { email: string; password: string; role: string }) => Promise<AxiosResponse<ApiResponse<any>>>;
+  login: (credentials: { email: string; password: string; role?: string }) => Promise<AxiosResponse<ApiResponse<any>>>;
   register: (userData: any) => Promise<AxiosResponse<ApiResponse<any>>>;
   logout: (refreshToken: { refreshToken: string }) => Promise<AxiosResponse<ApiResponse<any>>>;
   refreshToken: (refreshToken: { refreshToken: string }) => Promise<AxiosResponse<ApiResponse<any>>>;
