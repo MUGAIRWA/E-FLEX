@@ -4,6 +4,7 @@ const { asyncHandler, getPagination, paginated, filesToAttachments, percentage, 
 const { notifyUsers } = require('../utils/notify');
 const { isEnrolled } = require('../utils/permissions');
 const { examUpload } = require('../middleware/upload');
+const { ensureTeacherCourse } = require('../services/courseService');
 
 const parseQuestions = (questions) => {
   if (!questions) return [];
@@ -29,21 +30,38 @@ const stripAnswers = (exam) => ({
  * required `date` and had no `instructions`, so every create failed validation.
  */
 const createExamRecord = async (req, res, { attachments = [], notificationTitle, verb }) => {
-  const { title, description, course, examDate, date, duration, totalMarks, questions, instructions, type } = req.body;
-  const when = examDate || date;
+  const {
+    title,
+    description,
+    course,
+    subject,
+    class: className,
+    stream,
+    examDate,
+    date,
+    duration,
+    totalMarks,
+    questions,
+    instructions,
+    type
+  } = req.body;
+  const when = examDate || date || new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
+  const dur = parseInt(duration, 10) || 30;
 
-  if (!title || !course || !when || !duration) {
-    return res.status(400).json({ message: 'title, course, examDate and duration are required' });
+  if (!title) {
+    return res.status(400).json({ message: 'title is required' });
   }
 
-  const courseDoc = await prisma.course.findUnique({
-    where: { id: course },
-    include: { students: { select: { id: true } } }
+  const courseDoc = await ensureTeacherCourse(req.user, {
+    courseId: course,
+    subject,
+    className,
+    stream
   });
   if (!courseDoc) {
     return res.status(404).json({ message: 'Course not found' });
   }
-  if (courseDoc.teacherId !== req.user.id) {
+  if (courseDoc.teacherId !== req.user.id && req.user.role !== 'admin') {
     return res.status(403).json({ message: 'Not authorized to create exams for this course' });
   }
 
@@ -51,15 +69,18 @@ const createExamRecord = async (req, res, { attachments = [], notificationTitle,
     data: {
       title,
       description,
-      courseId: course,
+      courseId: courseDoc.id,
       teacherId: req.user.id,
       ...(type ? { type } : {}),
       examDate: new Date(when),
-      duration: parseInt(duration, 10),
+      duration: dur,
       ...(totalMarks !== undefined ? { totalMarks: Number(totalMarks) } : {}),
       questions: parseQuestions(questions),
       instructions,
       attachments
+    },
+    include: {
+      course: { select: { id: true, title: true, subject: true, class: true, stream: true } }
     }
   });
 

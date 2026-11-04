@@ -1,8 +1,10 @@
+const crypto = require('crypto');
 const { prisma } = require('../config/db');
 const { userWithEmail, studentBrief } = require('../utils/selects');
 const { asyncHandler, getPagination, paginated } = require('../utils/helpers');
 const { notifyUsers } = require('../utils/notify');
 const { materialUpload } = require('../middleware/upload');
+const { ensureTeacherCourse } = require('../services/courseService');
 
 const courseInclude = {
   teacher: { select: userWithEmail },
@@ -241,6 +243,111 @@ const uploadMaterial = asyncHandler(async (req, res) => {
   res.status(201).json(material);
 });
 
+// @desc    Upload content (notes / video) directly by subject & class/stream
+// @route   POST /api/courses/materials
+// @access  Private/Teacher
+const uploadTeacherContent = asyncHandler(async (req, res) => {
+  const {
+    title,
+    description,
+    type = 'notes',
+    subject,
+    class: className,
+    stream,
+    courseId,
+    contentUrl
+  } = req.body;
+
+  if (!title) {
+    return res.status(400).json({ message: 'Title is required' });
+  }
+
+  const course = await ensureTeacherCourse(req.user, {
+    courseId,
+    subject,
+    className,
+    stream
+  });
+
+  const material = {
+    id: crypto.randomUUID(),
+    title,
+    description: description || '',
+    type,
+    subject: course.subject,
+    class: course.class || className || '',
+    stream: course.stream || stream || '',
+    courseId: course.id,
+    courseTitle: course.title,
+    url: req.file ? `/uploads/materials/${req.file.filename}` : contentUrl || '',
+    fileName: req.file ? req.file.originalname : null,
+    uploadedBy: `${req.user.firstName} ${req.user.lastName}`,
+    uploadedAt: new Date().toISOString()
+  };
+
+  const materials = Array.isArray(course.materials) ? course.materials : [];
+  await prisma.course.update({
+    where: { id: course.id },
+    data: { materials: [material, ...materials] }
+  });
+
+  await notifyUsers(
+    req.app.get('io'),
+    course.students.map((s) => s.id),
+    {
+      title: `New ${type === 'video' ? 'Video' : 'Notes'}: ${title}`,
+      message: `${req.user.firstName} ${req.user.lastName} uploaded "${title}" in ${course.title}`,
+      type: 'info',
+      link: 'modules'
+    }
+  );
+
+  res.status(201).json(material);
+});
+
+// @desc    Get uploaded materials (for teacher or student)
+// @route   GET /api/courses/materials
+// @access  Private
+const getCourseMaterials = asyncHandler(async (req, res) => {
+  const where = {};
+  if (req.user.role === 'teacher') {
+    where.teacherId = req.user.id;
+  } else if (req.user.role === 'student') {
+    where.OR = [
+      { students: { some: { id: req.user.id } } },
+      ...(req.user.class
+        ? [{ class: req.user.class, ...(req.user.stream ? { stream: req.user.stream } : {}) }]
+        : [])
+    ];
+  }
+
+  const courses = await prisma.course.findMany({
+    where,
+    include: { teacher: { select: userWithEmail } },
+    orderBy: { updatedAt: 'desc' }
+  });
+
+  const items = [];
+  for (const c of courses) {
+    const mats = Array.isArray(c.materials) ? c.materials : [];
+    for (const m of mats) {
+      items.push({
+        id: m.id || `${c.id}-${m.title}`,
+        ...m,
+        courseId: c.id,
+        courseTitle: c.title,
+        subject: m.subject || c.subject,
+        class: m.class || c.class || '',
+        stream: m.stream || c.stream || '',
+        teacherName: c.teacher ? `${c.teacher.firstName} ${c.teacher.lastName}` : ''
+      });
+    }
+  }
+
+  items.sort((a, b) => new Date(b.uploadedAt || 0) - new Date(a.uploadedAt || 0));
+  res.json({ materials: items });
+});
+
 module.exports = {
   createCourse,
   getCourses,
@@ -250,5 +357,7 @@ module.exports = {
   removeStudent,
   deleteCourse,
   uploadMaterial,
+  uploadTeacherContent,
+  getCourseMaterials,
   materialUpload
 };

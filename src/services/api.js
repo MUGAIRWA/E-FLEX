@@ -86,6 +86,10 @@ export const courseAPI = {
   deleteCourse: (id) => api.delete(`/courses/${id}`),
   enrollStudent: (id, studentId) => api.post(`/courses/${id}/enroll`, { studentId }),
   removeStudent: (id, studentId) => api.delete(`/courses/${id}/students/${studentId}`),
+  getMaterials: (params) => api.get('/courses/materials', { params }),
+  uploadMaterial: (formData) => api.post('/courses/materials', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  }),
 };
 
 // Assignment API
@@ -118,6 +122,9 @@ export const examAPI = {
   getExams: (params) => api.get('/exams', { params }),
   getExam: (id) => api.get(`/exams/${id}`),
   createExam: (examData) => api.post('/exams', examData),
+  createExamWithFile: (formData) => api.post('/exams/upload', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  }),
   updateExam: (id, examData) => api.put(`/exams/${id}`, examData),
   deleteExam: (id) => api.delete(`/exams/${id}`),
   submitExamResult: (id, resultData) => api.post(`/exams/${id}/submit`, resultData),
@@ -147,6 +154,9 @@ export const notificationAPI = {
   markAsRead: (id) => api.put(`/notifications/${id}/read`),
   markAllAsRead: () => api.put('/notifications/read-all'),
   deleteNotification: (id) => api.delete(`/notifications/${id}`),
+  createHelpRequest: (helpData) => api.post('/notifications/help-request', helpData),
+  getHelpRequests: () => api.get('/notifications/help-requests'),
+  replyToHelpRequest: (id, replyData) => api.post(`/notifications/help-requests/${id}/reply`, replyData),
 };
 
 // Announcement API

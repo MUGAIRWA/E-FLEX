@@ -1,15 +1,38 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { UsersIcon, FileTextIcon, ClipboardCheckIcon, BellIcon, TrendingUpIcon, AlertCircleIcon } from 'lucide-react';
+import { UsersIcon, FileTextIcon, ClipboardCheckIcon, BellIcon, TrendingUpIcon, AlertCircleIcon, HelpCircleIcon } from 'lucide-react';
 import { Card } from '../../../components/ui/Card';
 import { Button } from '../../../components/ui/Button';
 import { AnnouncementModal } from '../../../components/AnnouncementModal';
 // @ts-ignore: no types for JS AuthContext module
 import { useAuth } from '../../../contexts/AuthContext';
+import { notificationAPI } from '../../../services/api';
+import { useSocket } from '../../../contexts/SocketContext';
+
 export function TeacherOverviewTab({ onTabChange }: { onTabChange: (tab: string) => void }) {
   const { user } = useAuth();
+  const { socket } = useSocket();
   const userName = user ? `${user.firstName} ${user.lastName}` : 'Teacher';
   const [isAnnouncementModalOpen, setIsAnnouncementModalOpen] = useState(false);
+  const [helpRequests, setHelpRequests] = useState<any[]>([]);
+
+  useEffect(() => {
+    const loadHelp = async () => {
+      try {
+        const res = await notificationAPI.getHelpRequests();
+        setHelpRequests((res.data?.helpRequests || []).filter((r: any) => !r.isRead));
+      } catch (err) {
+        // ignore
+      }
+    };
+    loadHelp();
+    if (socket) {
+      socket.on('student_help_request', loadHelp);
+      return () => {
+        socket.off('student_help_request', loadHelp);
+      };
+    }
+  }, [socket]);
 
   const stats = [{
     label: 'Total Students',
@@ -86,6 +109,30 @@ export function TeacherOverviewTab({ onTabChange }: { onTabChange: (tab: string)
           Here is your teaching overview for today
         </p>
       </motion.div>
+      {helpRequests.length > 0 && (
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
+          <Card className="border-2 border-amber-300 bg-amber-50/60">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div className="flex items-start space-x-3">
+                <div className="p-2.5 rounded-xl bg-amber-500 text-white">
+                  <HelpCircleIcon className="w-6 h-6" />
+                </div>
+                <div>
+                  <h3 className="font-poppins font-bold text-lg text-gray-900">
+                    {helpRequests.length} Student{helpRequests.length > 1 ? 's Need' : ' Needs'} Help in a Specific Area
+                  </h3>
+                  <p className="text-sm text-gray-700 mt-0.5">
+                    Latest: <span className="font-semibold">{helpRequests[0].subject} — {helpRequests[0].topic}</span> ({helpRequests[0].student ? `${helpRequests[0].student.firstName} ${helpRequests[0].student.lastName}` : 'Student'})
+                  </p>
+                </div>
+              </div>
+              <Button variant="primary" size="sm" onClick={() => onTabChange('progress')}>
+                Review & Help Students
+              </Button>
+            </div>
+          </Card>
+        </motion.div>
+      )}
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {stats.map((stat, index) => <motion.div key={index} initial={{

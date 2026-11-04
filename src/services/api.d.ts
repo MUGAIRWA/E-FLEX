@@ -38,6 +38,8 @@ export interface CourseAPI {
   deleteCourse: (id: string) => Promise<AxiosResponse<ApiResponse<any>>>;
   enrollStudent: (id: string, studentId: { studentId: string }) => Promise<AxiosResponse<ApiResponse<any>>>;
   removeStudent: (id: string, studentId: string) => Promise<AxiosResponse<ApiResponse<any>>>;
+  getMaterials: (params?: any) => Promise<AxiosResponse<any>>;
+  uploadMaterial: (formData: FormData) => Promise<AxiosResponse<any>>;
 }
 
 // Assignment API
@@ -66,6 +68,7 @@ export interface ExamAPI {
   getExams: (params?: any) => Promise<AxiosResponse<ApiResponse<any>>>;
   getExam: (id: string) => Promise<AxiosResponse<ApiResponse<any>>>;
   createExam: (examData: any) => Promise<AxiosResponse<ApiResponse<any>>>;
+  createExamWithFile: (formData: FormData) => Promise<AxiosResponse<ApiResponse<any>>>;
   updateExam: (id: string, examData: any) => Promise<AxiosResponse<ApiResponse<any>>>;
   deleteExam: (id: string) => Promise<AxiosResponse<ApiResponse<any>>>;
   submitExamResult: (id: string, resultData: any) => Promise<AxiosResponse<ApiResponse<any>>>;
@@ -95,6 +98,9 @@ export interface NotificationAPI {
   markAsRead: (id: string) => Promise<AxiosResponse<ApiResponse<any>>>;
   markAllAsRead: () => Promise<AxiosResponse<ApiResponse<any>>>;
   deleteNotification: (id: string) => Promise<AxiosResponse<ApiResponse<any>>>;
+  createHelpRequest: (helpData: any) => Promise<AxiosResponse<any>>;
+  getHelpRequests: () => Promise<AxiosResponse<any>>;
+  replyToHelpRequest: (id: string, replyData: any) => Promise<AxiosResponse<any>>;
 }
 
 // Announcement API

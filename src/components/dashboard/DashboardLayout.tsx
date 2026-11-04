@@ -84,7 +84,13 @@ export function DashboardLayout({
     }
 
     const link = (item.link || '').toLowerCase();
-    if (link.includes('assignment')) {
+    if (item.type === 'help_request' || link.includes('progress')) {
+      onTabChange(userRole === 'teacher' ? 'progress' : 'support');
+    } else if (link.includes('support')) {
+      onTabChange(userRole === 'student' ? 'support' : 'announcements');
+    } else if (link.includes('module')) {
+      onTabChange(userRole === 'student' ? 'modules' : 'upload');
+    } else if (link.includes('assignment')) {
       onTabChange(userRole === 'teacher' ? 'gradebook' : 'assignments');
     } else if (link.includes('grade')) {
       onTabChange(
@@ -311,6 +317,11 @@ export function DashboardLayout({
                                     }`}
                                   />
                                   <div className="min-w-0 flex-1">
+                                    {item.type === 'help_request' && (
+                                      <span className="inline-block text-[10px] font-bold uppercase tracking-wide bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full mb-1">
+                                        Student Needs Help
+                                      </span>
+                                    )}
                                     <p
                                       className={`text-sm truncate ${
                                         !item.isRead

@@ -4,6 +4,7 @@ const { asyncHandler, getPagination, paginated, filesToAttachments, percentage, 
 const { notifyUsers } = require('../utils/notify');
 const { teacherClassFilter, isEnrolled, canTeacherAccessStudent } = require('../utils/permissions');
 const { assignmentUpload: upload } = require('../middleware/upload');
+const { ensureTeacherCourse } = require('../services/courseService');
 
 /**
  * Prisma `where` for assignments a teacher may see: their own courses, or
@@ -34,20 +35,22 @@ const teacherCanAccessAssignment = async (teacher, assignmentId) => {
 // @route   POST /api/assignments
 // @access  Private/Teacher
 const createAssignment = asyncHandler(async (req, res) => {
-  const { title, description, course, dueDate, totalMarks, instructions } = req.body;
+  const { title, description, course, subject, class: className, stream, dueDate, totalMarks, instructions } = req.body;
 
-  if (!title || !course || !dueDate) {
-    return res.status(400).json({ message: 'title, course and dueDate are required' });
+  if (!title || !dueDate) {
+    return res.status(400).json({ message: 'title and dueDate are required' });
   }
 
-  const courseDoc = await prisma.course.findUnique({
-    where: { id: course },
-    include: { students: { select: { id: true } } }
+  const courseDoc = await ensureTeacherCourse(req.user, {
+    courseId: course,
+    subject,
+    className,
+    stream
   });
   if (!courseDoc) {
     return res.status(404).json({ message: 'Course not found' });
   }
-  if (courseDoc.teacherId !== req.user.id) {
+  if (courseDoc.teacherId !== req.user.id && req.user.role !== 'admin') {
     return res.status(403).json({ message: 'Not authorized to create assignments for this course' });
   }
 
@@ -55,12 +58,15 @@ const createAssignment = asyncHandler(async (req, res) => {
     data: {
       title,
       description,
-      courseId: course,
+      courseId: courseDoc.id,
       teacherId: req.user.id,
       dueDate: new Date(dueDate),
       ...(totalMarks !== undefined ? { totalMarks: Number(totalMarks) } : {}),
       instructions,
       attachments: filesToAttachments(req.files, 'assignments')
+    },
+    include: {
+      course: { select: { id: true, title: true, subject: true, class: true, stream: true } }
     }
   });
 
