@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import InputField from '../ui/InputField';
 import { Button } from '../ui/Button';
 
-const RegisterFormStudent = () => {
+const RegisterFormStudent = ({ onSubmit, loading }) => {
   const navigate = useNavigate();
   const [formData, setFormData] = useState({
     fullName: '',
@@ -74,44 +74,22 @@ const RegisterFormStudent = () => {
       return;
     }
 
-    setIsLoading(true);
-    try {
-      const response = await fetch('/api/auth/register', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          firstName: formData.fullName.split(' ')[0],
-          lastName: formData.fullName.split(' ').slice(1).join(' '),
-          email: formData.email,
-          password: formData.password,
-          role: 'student',
-          phoneNumber: formData.parentPhone,
-          admissionNumber: formData.admissionNumber,
-          class: formData.class,
-          stream: formData.stream,
-          // Note: In a real app, you'd need to create/find parent users first
-          linkedParents: [] // This would be populated when parents register
-        }),
-      });
+    const nameParts = formData.fullName.trim().split(/\s+/);
+    const registrationData = {
+      firstName: nameParts[0],
+      lastName: nameParts.slice(1).join(' '),
+      email: formData.email,
+      password: formData.password,
+      role: 'student',
+      phoneNumber: formData.parentPhone,
+      admissionNumber: formData.admissionNumber,
+      class: formData.class,
+      stream: formData.stream,
+      linkedParents: []
+    };
 
-      const data = await response.json();
-
-      if (response.ok) {
-        // Store auth state
-        localStorage.setItem('userRole', 'student');
-        localStorage.setItem('isAuthenticated', 'true');
-        localStorage.setItem('userToken', data.token);
-        localStorage.setItem('userName', `${data.firstName} ${data.lastName}`);
-        navigate('/student/dashboard');
-      } else {
-        setErrors({ general: data.message || 'Registration failed' });
-      }
-    } catch (error) {
-      setErrors({ general: 'Network error. Please try again.' });
-    } finally {
-      setIsLoading(false);
+    if (typeof onSubmit === 'function') {
+      await onSubmit(registrationData);
     }
   };
 
@@ -215,9 +193,9 @@ const RegisterFormStudent = () => {
         variant="primary"
         size="lg"
         className="w-full"
-        disabled={isLoading}
+        disabled={loading || isLoading}
       >
-        {isLoading ? 'Creating Account...' : 'Register'}
+        {loading || isLoading ? 'Creating Account...' : 'Register'}
       </Button>
     </motion.form>
   );

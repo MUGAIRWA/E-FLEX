@@ -1,124 +1,97 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { BellIcon, PlusIcon, EditIcon, TrashIcon, SendIcon, EyeIcon, CalendarIcon } from 'lucide-react';
+import { PlusIcon, EditIcon, TrashIcon, SendIcon } from 'lucide-react';
 import { Card } from '../../../components/ui/Card';
 import { Button } from '../../../components/ui/Button';
+import { announcementAPI } from '../../../services/api';
 
 export function Announcements() {
+  const [announcements, setAnnouncements] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [selectedAnnouncement, setSelectedAnnouncement] = useState(null);
   const [formData, setFormData] = useState({
     title: '',
-    content: '',
+    message: '',
+    type: 'general',
     targetAudience: 'all',
-    priority: 'normal',
-    scheduledDate: '',
+    priority: 'medium',
     isActive: true
   });
 
-  const announcementsData = [
-    {
-      id: 1,
-      title: 'System Maintenance Notice',
-      content: 'The platform will undergo scheduled maintenance on Sunday, January 21st from 2:00 AM to 4:00 AM EAT. Some services may be temporarily unavailable.',
-      targetAudience: 'All Users',
-      priority: 'High',
-      status: 'Published',
-      createdDate: '2024-01-15',
-      scheduledDate: '2024-01-21',
-      views: 245,
-      isActive: true
-    },
-    {
-      id: 2,
-      title: 'New Feature: Interactive Quizzes',
-      content: 'We are excited to announce the launch of interactive quizzes for Mathematics and Science subjects. Students can now take quizzes directly on the platform.',
-      targetAudience: 'Students',
-      priority: 'Normal',
-      status: 'Published',
-      createdDate: '2024-01-14',
-      scheduledDate: null,
-      views: 189,
-      isActive: true
-    },
-    {
-      id: 3,
-      title: 'Parent-Teacher Meeting Schedule',
-      content: 'Parent-teacher meetings are scheduled for next week. Please check your dashboard for your assigned time slot.',
-      targetAudience: 'Parents',
-      priority: 'Normal',
-      status: 'Draft',
-      createdDate: '2024-01-13',
-      scheduledDate: '2024-01-25',
-      views: 0,
-      isActive: false
-    },
-    {
-      id: 4,
-      title: 'Holiday Notice',
-      content: 'School will be closed for the upcoming public holiday on January 20th. No classes will be held.',
-      targetAudience: 'All Users',
-      priority: 'High',
-      status: 'Scheduled',
-      createdDate: '2024-01-12',
-      scheduledDate: '2024-01-19',
-      views: 0,
-      isActive: false
+  const fetchAnnouncements = async () => {
+    try {
+      setLoading(true);
+      const response = await announcementAPI.getAnnouncements({ page: 1, limit: 50 });
+      setAnnouncements(response.data?.announcements || []);
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to load announcements');
+    } finally {
+      setLoading(false);
     }
-  ];
+  };
 
-  const handleCreateAnnouncement = () => {
-    console.log('Create announcement:', formData);
+  useEffect(() => {
+    fetchAnnouncements();
+  }, []);
+
+  const resetForm = () => {
     setShowCreateForm(false);
+    setSelectedAnnouncement(null);
     setFormData({
       title: '',
-      content: '',
+      message: '',
+      type: 'general',
       targetAudience: 'all',
-      priority: 'normal',
-      scheduledDate: '',
+      priority: 'medium',
       isActive: true
     });
-    // Here you would create the announcement
+  };
+
+  const handleSaveAnnouncement = async () => {
+    if (!formData.title.trim() || !formData.message.trim()) {
+      setError('Title and content are required');
+      return;
+    }
+    setError('');
+    try {
+      if (selectedAnnouncement) {
+        const id = selectedAnnouncement.id || selectedAnnouncement._id;
+        const response = await announcementAPI.updateAnnouncement(id, formData);
+        setAnnouncements((prev) =>
+          prev.map((a) => ((a.id || a._id) === id ? response.data : a))
+        );
+      } else {
+        const response = await announcementAPI.createAnnouncement(formData);
+        setAnnouncements((prev) => [response.data, ...prev]);
+      }
+      resetForm();
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to save announcement');
+    }
   };
 
   const handleEditAnnouncement = (announcement) => {
     setSelectedAnnouncement(announcement);
     setFormData({
-      title: announcement.title,
-      content: announcement.content,
-      targetAudience: announcement.targetAudience.toLowerCase().replace(' ', ''),
-      priority: announcement.priority.toLowerCase(),
-      scheduledDate: announcement.scheduledDate || '',
-      isActive: announcement.isActive
+      title: announcement.title || '',
+      message: announcement.message || announcement.content || '',
+      type: announcement.type || 'general',
+      targetAudience: announcement.targetAudience || 'all',
+      priority: announcement.priority || 'medium',
+      isActive: announcement.isActive !== undefined ? announcement.isActive : true
     });
     setShowCreateForm(true);
   };
 
-  const handleDeleteAnnouncement = (id) => {
-    console.log('Delete announcement:', id);
-    // Here you would delete the announcement
-  };
-
-  const handlePublishAnnouncement = (id) => {
-    console.log('Publish announcement:', id);
-    // Here you would publish the announcement
-  };
-
-  const getStatusColor = (status) => {
-    switch (status) {
-      case 'Published':
-        return 'bg-green-100 text-green-800';
-      case 'Draft':
-        return 'bg-gray-100 text-gray-800';
-      case 'Scheduled':
-        return 'bg-blue-100 text-blue-800';
-      default:
-        return 'bg-gray-100 text-gray-800';
+  const handleDeleteAnnouncement = async (id) => {
+    try {
+      await announcementAPI.deleteAnnouncement(id);
+      setAnnouncements((prev) => prev.filter((a) => (a.id || a._id) !== id));
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to delete announcement');
     }
-  };
-
-  const getPriorityColor = (priority) => {
-    return priority === 'High' ? 'text-red-600' : 'text-gray-600';
   };
 
   return (
@@ -128,6 +101,12 @@ export function Announcements() {
         <div className="text-sm text-gray-500">Create and manage platform announcements</div>
       </div>
 
+      {error && (
+        <div className="p-3 bg-red-50 border border-red-200 text-red-600 text-sm rounded-lg">
+          {error}
+        </div>
+      )}
+
       {/* Create/Edit Form */}
       {showCreateForm && (
         <Card className="p-6">
@@ -135,18 +114,7 @@ export function Announcements() {
             <h2 className="text-xl font-semibold">
               {selectedAnnouncement ? 'Edit Announcement' : 'Create New Announcement'}
             </h2>
-            <Button variant="outline" onClick={() => {
-              setShowCreateForm(false);
-              setSelectedAnnouncement(null);
-              setFormData({
-                title: '',
-                content: '',
-                targetAudience: 'all',
-                priority: 'normal',
-                scheduledDate: '',
-                isActive: true
-              });
-            }}>
+            <Button variant="outline" onClick={resetForm}>
               Cancel
             </Button>
           </div>
@@ -164,14 +132,28 @@ export function Announcements() {
             </div>
 
             <div className="md:col-span-2">
-              <label className="block text-sm font-medium text-gray-700 mb-2">Content</label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Message</label>
               <textarea
-                value={formData.content}
-                onChange={(e) => setFormData({ ...formData, content: e.target.value })}
+                value={formData.message}
+                onChange={(e) => setFormData({ ...formData, message: e.target.value })}
                 rows={4}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
                 placeholder="Enter announcement content"
               />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Type</label>
+              <select
+                value={formData.type}
+                onChange={(e) => setFormData({ ...formData, type: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
+              >
+                <option value="general">General</option>
+                <option value="academic">Academic</option>
+                <option value="administrative">Administrative</option>
+                <option value="urgent">Urgent</option>
+              </select>
             </div>
 
             <div>
@@ -195,19 +177,10 @@ export function Announcements() {
                 onChange={(e) => setFormData({ ...formData, priority: e.target.value })}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
               >
-                <option value="normal">Normal</option>
+                <option value="low">Low</option>
+                <option value="medium">Medium</option>
                 <option value="high">High</option>
               </select>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Scheduled Date (Optional)</label>
-              <input
-                type="date"
-                value={formData.scheduledDate}
-                onChange={(e) => setFormData({ ...formData, scheduledDate: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
-              />
             </div>
 
             <div className="flex items-center">
@@ -225,7 +198,7 @@ export function Announcements() {
           </div>
 
           <div className="mt-6 flex justify-end">
-            <Button onClick={handleCreateAnnouncement}>
+            <Button onClick={handleSaveAnnouncement}>
               <SendIcon className="w-4 h-4 mr-2" />
               {selectedAnnouncement ? 'Update Announcement' : 'Create Announcement'}
             </Button>
@@ -243,64 +216,92 @@ export function Announcements() {
           </Button>
         </div>
 
-        <div className="space-y-4">
-          {announcementsData.map((announcement) => (
-            <motion.div
-              key={announcement.id}
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              className="p-4 border border-gray-200 rounded-lg hover:shadow-md transition-shadow"
-            >
-              <div className="flex items-start justify-between mb-3">
-                <div className="flex-1">
-                  <div className="flex items-center space-x-3 mb-2">
-                    <h3 className="text-lg font-semibold text-gray-900">{announcement.title}</h3>
-                    <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(announcement.status)}`}>
-                      {announcement.status}
-                    </span>
-                    <span className={`text-sm font-medium ${getPriorityColor(announcement.priority)}`}>
-                      {announcement.priority} Priority
-                    </span>
+        {loading ? (
+          <p className="text-sm text-gray-500">Loading announcements...</p>
+        ) : announcements.length === 0 ? (
+          <p className="text-sm text-gray-500">No announcements found. Create one above!</p>
+        ) : (
+          <div className="space-y-4">
+            {announcements.map((announcement) => {
+              const id = announcement.id || announcement._id;
+              return (
+                <motion.div
+                  key={id}
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  className="p-4 border border-gray-200 rounded-lg hover:shadow-md transition-shadow"
+                >
+                  <div className="flex items-start justify-between mb-3">
+                    <div className="flex-1">
+                      <div className="flex items-center space-x-3 mb-2">
+                        <h3 className="text-lg font-semibold text-gray-900">
+                          {announcement.title}
+                        </h3>
+                        <span
+                          className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                            announcement.isActive
+                              ? 'bg-green-100 text-green-800'
+                              : 'bg-gray-100 text-gray-800'
+                          }`}
+                        >
+                          {announcement.isActive ? 'Published' : 'Inactive'}
+                        </span>
+                        <span
+                          className={`text-sm font-medium capitalize ${
+                            announcement.priority === 'high'
+                              ? 'text-red-600'
+                              : 'text-gray-600'
+                          }`}
+                        >
+                          {announcement.priority} Priority
+                        </span>
+                      </div>
+                      <p className="text-gray-700 mb-2">{announcement.message}</p>
+                      <div className="flex items-center space-x-4 text-sm text-gray-500">
+                        <span className="capitalize">
+                          Target: {announcement.targetAudience}
+                        </span>
+                        <span>
+                          Created:{' '}
+                          {announcement.createdAt
+                            ? new Date(announcement.createdAt).toLocaleDateString()
+                            : 'N/A'}
+                        </span>
+                        {announcement.postedBy && (
+                          <span>
+                            By: {announcement.postedBy.firstName}{' '}
+                            {announcement.postedBy.lastName}
+                          </span>
+                        )}
+                      </div>
+                    </div>
                   </div>
-                  <p className="text-gray-700 mb-2">{announcement.content}</p>
-                  <div className="flex items-center space-x-4 text-sm text-gray-500">
-                    <span>Target: {announcement.targetAudience}</span>
-                    <span>Created: {announcement.createdDate}</span>
-                    {announcement.scheduledDate && (
-                      <span className="flex items-center">
-                        <CalendarIcon className="w-4 h-4 mr-1" />
-                        Scheduled: {announcement.scheduledDate}
-                      </span>
-                    )}
-                    <span className="flex items-center">
-                      <EyeIcon className="w-4 h-4 mr-1" />
-                      {announcement.views} views
-                    </span>
-                  </div>
-                </div>
-              </div>
 
-              <div className="flex items-center justify-between">
-                <div className="flex space-x-2">
-                  {announcement.status === 'Draft' && (
-                    <Button size="sm" onClick={() => handlePublishAnnouncement(announcement.id)}>
-                      <SendIcon className="w-4 h-4 mr-1" />
-                      Publish
-                    </Button>
-                  )}
-                  <Button size="sm" variant="outline" onClick={() => handleEditAnnouncement(announcement)}>
-                    <EditIcon className="w-4 h-4 mr-1" />
-                    Edit
-                  </Button>
-                  <Button size="sm" variant="outline" onClick={() => handleDeleteAnnouncement(announcement.id)}>
-                    <TrashIcon className="w-4 h-4 mr-1" />
-                    Delete
-                  </Button>
-                </div>
-              </div>
-            </motion.div>
-          ))}
-        </div>
+                  <div className="flex items-center justify-between">
+                    <div className="flex space-x-2">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handleEditAnnouncement(announcement)}
+                      >
+                        <EditIcon className="w-4 h-4 mr-1" />
+                        Edit
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handleDeleteAnnouncement(id)}
+                      >
+                        <TrashIcon className="w-4 h-4 mr-1" />
+                        Delete
+                      </Button>
+                    </div>
+                  </div>
+                </motion.div>
+              );
+            })}
+          </div>
+        )}
       </Card>
     </div>
   );

@@ -4,6 +4,7 @@ import { MenuIcon, XIcon, BellIcon } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 // @ts-ignore: no types for JS AuthContext
 import { useAuth } from '../../contexts/AuthContext';
+import { useSocket } from '../../contexts/SocketContext';
 import { Button } from './Button';
 interface NavbarProps {
   isLoggedIn?: boolean;
@@ -13,6 +14,7 @@ export function Navbar({
 }: NavbarProps) {
   const navigate = useNavigate();
   const { isAuthenticated, user, logout } = useAuth();
+  const { unreadCount } = useSocket();
   const [isOpen, setIsOpen] = useState(false);
 
   const handleLogin = () => {
@@ -25,10 +27,10 @@ export function Navbar({
 
   const handleDashboard = () => {
     const roleRoutes = {
-      admin: '/admin',
-      teacher: '/teacher',
-      student: '/student',
-      parent: '/parent'
+      admin: '/admin/dashboard',
+      teacher: '/teacher/dashboard',
+      student: '/student/dashboard',
+      parent: '/parent/dashboard'
     } as const;
 
     const role = user?.role;
@@ -72,13 +74,18 @@ export function Navbar({
               Testimonials
             </a>
             {isAuthenticated ? <div className="flex items-center space-x-4">
-                <motion.button whileHover={{
-              scale: 1.1
-            }} className="relative">
+                <motion.button
+                  whileHover={{ scale: 1.1 }}
+                  onClick={handleDashboard}
+                  className="relative p-1"
+                  aria-label="View notifications in dashboard"
+                >
                   <BellIcon className="w-6 h-6 text-gray-700" />
-                  <span className="absolute -top-1 -right-1 bg-warning text-white text-xs rounded-full w-4 h-4 flex items-center justify-center">
-                    3
-                  </span>
+                  {unreadCount > 0 && (
+                    <span className="absolute -top-1 -right-1 bg-warning text-white text-xs rounded-full min-w-[16px] h-4 px-1 flex items-center justify-center">
+                      {unreadCount > 99 ? '99+' : unreadCount}
+                    </span>
+                  )}
                 </motion.button>
                 <div className="flex items-center space-x-2">
                   <span className="text-sm text-gray-700">

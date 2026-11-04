@@ -1,27 +1,37 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { io, Socket } from 'socket.io-client';
 import { useAuth } from './AuthContext';
+import { notificationAPI } from '../services/api';
 
-interface Notification {
+export interface NotificationItem {
+  id?: string;
+  _id?: string;
   title: string;
   message: string;
-  // Add other notification properties as needed
+  type?: string;
+  isRead?: boolean;
+  link?: string;
+  createdAt?: string;
 }
 
 interface Message {
   conversationId: string;
-  // Add other message properties as needed
+  [key: string]: any;
 }
 
 interface SocketContextType {
   socket: Socket | null;
   isConnected: boolean;
-  notifications: Notification[];
+  notifications: NotificationItem[];
+  unreadCount: number;
   messages: Message[];
   joinRoom: (roomId: string) => void;
   leaveRoom: (roomId: string) => void;
   sendMessage: (messageData: any) => void;
-  markNotificationsAsRead: () => void;
+  markNotificationAsRead: (id: string) => Promise<void>;
+  markNotificationsAsRead: () => Promise<void>;
+  deleteNotification: (id: string) => Promise<void>;
+  refreshNotifications: () => Promise<void>;
   markMessagesAsRead: (conversationId: string) => void;
 }
 
@@ -38,71 +48,98 @@ export const useSocket = (): SocketContextType => {
 export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [socket, setSocket] = useState<Socket | null>(null);
   const [isConnected, setIsConnected] = useState(false);
-  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [messages, setMessages] = useState<Message[]>([]);
   const { user, isAuthenticated } = useAuth();
 
+  const refreshNotifications = useCallback(async () => {
+    if (!isAuthenticated || !localStorage.getItem('accessToken')) {
+      setNotifications([]);
+      return;
+    }
+    try {
+      const response = await notificationAPI.getNotifications();
+      if (Array.isArray(response.data)) {
+        setNotifications(response.data);
+      }
+    } catch (err) {
+      console.error('Failed to load notifications:', err);
+    }
+  }, [isAuthenticated]);
+
   useEffect(() => {
     if (isAuthenticated && user) {
-      // Initialize socket connection
-      const newSocket = io('http://localhost:5000', {
+      refreshNotifications();
+    } else {
+      setNotifications([]);
+    }
+  }, [isAuthenticated, user, refreshNotifications]);
+
+  useEffect(() => {
+    if (isAuthenticated && user) {
+      const socketUrl =
+        (import.meta as any).env?.VITE_SOCKET_URL || 'http://localhost:5000';
+      const newSocket = io(socketUrl, {
         auth: {
           token: localStorage.getItem('accessToken')
         }
       });
 
-      // Connection events
       newSocket.on('connect', () => {
-        console.log('Connected to server');
         setIsConnected(true);
       });
 
       newSocket.on('disconnect', () => {
-        console.log('Disconnected from server');
         setIsConnected(false);
       });
 
-      // Notification events
-      newSocket.on('notification', (notification) => {
-        console.log('New notification:', notification);
-        setNotifications(prev => [notification, ...prev]);
+      newSocket.on('notification', (notification: NotificationItem) => {
+        const item: NotificationItem = {
+          id: notification.id || notification._id || `temp-${Date.now()}`,
+          _id: notification._id || notification.id,
+          title: notification.title || 'New Notification',
+          message: notification.message || '',
+          type: notification.type || 'info',
+          isRead: Boolean(notification.isRead),
+          link: notification.link || '',
+          createdAt: notification.createdAt || new Date().toISOString()
+        };
+        setNotifications((prev) => [item, ...prev]);
 
-        // Show browser notification if permission granted
-        if (Notification.permission === 'granted') {
-          new Notification(notification.title, {
-            body: notification.message,
+        if ('Notification' in window && window.Notification.permission === 'granted') {
+          new window.Notification(item.title, {
+            body: item.message,
             icon: '/favicon.ico'
           });
         }
       });
 
-      // Message events
       newSocket.on('new_message', (messageData) => {
-        console.log('New message:', messageData);
-        setMessages(prev => [messageData, ...prev]);
+        setMessages((prev) => [messageData, ...prev]);
+        setNotifications((prev) => [
+          {
+            id: `msg-${Date.now()}`,
+            title: `New message from ${messageData?.sender?.firstName || 'User'}`,
+            message: messageData?.message?.content || 'You received a new message',
+            type: 'info',
+            isRead: false,
+            link: 'messages',
+            createdAt: new Date().toISOString()
+          },
+          ...prev
+        ]);
       });
 
-      // Assignment events
       newSocket.on('assignment_created', (data) => {
-        console.log('New assignment:', data);
-        // Handle assignment notification
+        refreshNotifications();
       });
 
       newSocket.on('assignment_graded', (data) => {
-        console.log('Assignment graded:', data);
-        // Handle grade notification
+        refreshNotifications();
       });
 
-      // Attendance events
       newSocket.on('attendance_marked', (data) => {
-        console.log('Attendance marked:', data);
-        // Handle attendance notification
-      });
-
-      // Announcement events
-      newSocket.on('announcement', (data) => {
-        console.log('New announcement:', data);
-        // Handle announcement notification
+        refreshNotifications();
       });
 
       setSocket(newSocket);
@@ -117,14 +154,7 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         setIsConnected(false);
       }
     }
-  }, [isAuthenticated, user]);
-
-  // Request notification permission on mount
-  useEffect(() => {
-    if ('Notification' in window && Notification.permission === 'default') {
-      Notification.requestPermission();
-    }
-  }, []);
+  }, [isAuthenticated, user, refreshNotifications]);
 
   const joinRoom = (roomId: string) => {
     if (socket && isConnected) {
@@ -144,29 +174,60 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     }
   };
 
-  const markNotificationsAsRead = () => {
-    setNotifications([]);
+  const markNotificationAsRead = async (id: string) => {
+    setNotifications((prev) =>
+      prev.map((n) => (n.id === id || n._id === id ? { ...n, isRead: true } : n))
+    );
+    if (!id.startsWith('temp-') && !id.startsWith('msg-')) {
+      try {
+        await notificationAPI.markAsRead(id);
+      } catch (err) {
+        console.error('Failed to mark notification as read:', err);
+      }
+    }
+  };
+
+  const markNotificationsAsRead = async () => {
+    setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
+    try {
+      await notificationAPI.markAllAsRead();
+    } catch (err) {
+      console.error('Failed to mark all notifications as read:', err);
+    }
+  };
+
+  const deleteNotification = async (id: string) => {
+    setNotifications((prev) => prev.filter((n) => n.id !== id && n._id !== id));
+    if (!id.startsWith('temp-') && !id.startsWith('msg-')) {
+      try {
+        await notificationAPI.deleteNotification(id);
+      } catch (err) {
+        console.error('Failed to delete notification:', err);
+      }
+    }
   };
 
   const markMessagesAsRead = (conversationId: string) => {
-    setMessages(prev => prev.filter(msg => msg.conversationId !== conversationId));
+    setMessages((prev) => prev.filter((msg) => msg.conversationId !== conversationId));
   };
 
-  const value = {
+  const unreadCount = notifications.filter((n) => !n.isRead).length;
+
+  const value: SocketContextType = {
     socket,
     isConnected,
     notifications,
+    unreadCount,
     messages,
     joinRoom,
     leaveRoom,
     sendMessage,
+    markNotificationAsRead,
     markNotificationsAsRead,
+    deleteNotification,
+    refreshNotifications,
     markMessagesAsRead
   };
 
-  return (
-    <SocketContext.Provider value={value}>
-      {children}
-    </SocketContext.Provider>
-  );
+  return <SocketContext.Provider value={value}>{children}</SocketContext.Provider>;
 };

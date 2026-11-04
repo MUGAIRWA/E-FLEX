@@ -1,6 +1,7 @@
 const { prisma } = require('../config/db');
 const { userWithRole } = require('../utils/selects');
 const { asyncHandler, getPagination, paginated, pickDefined } = require('../utils/helpers');
+const { notifyUsers } = require('../utils/notify');
 
 const announcementInclude = {
   postedBy: { select: userWithRole }
@@ -106,18 +107,39 @@ const createAnnouncement = asyncHandler(async (req, res) => {
 
   // Emit socket event for real-time announcement
   const io = req.app.get('io');
+  const roomMap = {
+    students: 'student',
+    parents: 'parent',
+    teachers: 'teacher'
+  };
   if (io) {
-    const roomMap = {
-      students: 'student',
-      parents: 'parent',
-      teachers: 'teacher'
-    };
     if (audience === 'all') {
       io.emit('announcement', announcement);
     } else if (roomMap[audience]) {
       io.to(roomMap[audience]).emit('announcement', announcement);
     }
   }
+
+  // Persist notifications for targeted users
+  const userWhere = {
+    isActive: true,
+    id: { not: req.user.id },
+    ...(audience !== 'all' && roomMap[audience] ? { role: roomMap[audience] } : {})
+  };
+  const recipients = await prisma.user.findMany({
+    where: userWhere,
+    select: { id: true }
+  });
+  await notifyUsers(
+    io,
+    recipients.map((u) => u.id),
+    {
+      title: `Announcement: ${announcement.title}`,
+      message: announcement.message,
+      type: 'announcement',
+      link: 'announcements'
+    }
+  );
 
   res.status(201).json(announcement);
 });

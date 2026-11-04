@@ -11,17 +11,19 @@ import RegisterFormParent from '../../components/auth/RegisterFormParent';
 import RegisterFormAdmin from '../../components/auth/RegisterFormAdmin';
 import RoleSelector from '../../components/ui/RoleSelector';
 
+const VALID_ROLES = ['student', 'teacher', 'parent', 'admin'];
+
 const AuthPage = () => {
+  const location = useLocation();
+  const pathRole = location.pathname.split('/').pop();
+  const initialRole = VALID_ROLES.includes(pathRole) ? pathRole : 'student';
+
   const [isLogin, setIsLogin] = useState(true);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [selectedRole, setSelectedRole] = useState('student');
+  const [selectedRole, setSelectedRole] = useState(initialRole);
   const { login, register } = useAuth();
   const navigate = useNavigate();
-  const location = useLocation();
-
-  // Determine user type from URL path
-  const userType = location.pathname.split('/').pop() || 'student';
 
   const handleLogin = async (formData) => {
     setLoading(true);

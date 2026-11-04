@@ -1,29 +1,26 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { useNavigate } from 'react-router-dom';
 import InputField from '../ui/InputField';
 import { Button } from '../ui/Button';
 
-const RegisterFormParent = () => {
-  const navigate = useNavigate();
+const RegisterFormParent = ({ onSubmit, loading }) => {
   const [formData, setFormData] = useState({
     fullName: '',
     email: '',
     phone: '',
+    childEmail: '',
     password: ''
   });
   const [errors, setErrors] = useState({});
-  const [isLoading, setIsLoading] = useState(false);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
       [name]: value
     }));
-    // Clear error when user starts typing
     if (errors[name]) {
-      setErrors(prev => ({
+      setErrors((prev) => ({
         ...prev,
         [name]: ''
       }));
@@ -32,10 +29,17 @@ const RegisterFormParent = () => {
 
   const validateForm = () => {
     const newErrors = {};
-    if (!formData.fullName.trim()) newErrors.fullName = 'Full name is required';
+    if (!formData.fullName.trim()) {
+      newErrors.fullName = 'Full name is required';
+    } else if (formData.fullName.trim().split(/\s+/).length < 2) {
+      newErrors.fullName = 'Please enter both first and last name';
+    }
     if (!formData.email) newErrors.email = 'Email is required';
     else if (!/\S+@\S+\.\S+/.test(formData.email)) newErrors.email = 'Email is invalid';
     if (!formData.phone.trim()) newErrors.phone = 'Phone number is required';
+    if (formData.childEmail && !/\S+@\S+\.\S+/.test(formData.childEmail)) {
+      newErrors.childEmail = 'Student email is invalid';
+    }
     if (!formData.password) newErrors.password = 'Password is required';
     else if (formData.password.length < 6) newErrors.password = 'Password must be at least 6 characters';
     return newErrors;
@@ -49,15 +53,20 @@ const RegisterFormParent = () => {
       return;
     }
 
-    setIsLoading(true);
-    // Simulate API call
-    setTimeout(() => {
-      setIsLoading(false);
-      // Store auth state (in real app, this would be handled by auth context)
-      localStorage.setItem('userRole', 'parent');
-      localStorage.setItem('isAuthenticated', 'true');
-      navigate('/parent/dashboard');
-    }, 1000);
+    const nameParts = formData.fullName.trim().split(/\s+/);
+    const registrationData = {
+      firstName: nameParts[0],
+      lastName: nameParts.slice(1).join(' '),
+      email: formData.email,
+      phoneNumber: formData.phone,
+      password: formData.password,
+      role: 'parent',
+      ...(formData.childEmail ? { childEmail: formData.childEmail.trim() } : {})
+    };
+
+    if (typeof onSubmit === 'function') {
+      await onSubmit(registrationData);
+    }
   };
 
   return (
@@ -101,6 +110,16 @@ const RegisterFormParent = () => {
       />
 
       <InputField
+        label="Child's Student Email (Optional)"
+        type="email"
+        name="childEmail"
+        placeholder="Link your child's student email"
+        value={formData.childEmail}
+        onChange={handleChange}
+        error={errors.childEmail}
+      />
+
+      <InputField
         label="Password"
         type="password"
         name="password"
@@ -116,9 +135,9 @@ const RegisterFormParent = () => {
         variant="primary"
         size="lg"
         className="w-full"
-        disabled={isLoading}
+        disabled={loading}
       >
-        {isLoading ? 'Creating Account...' : 'Register'}
+        {loading ? 'Creating Account...' : 'Register'}
       </Button>
     </motion.form>
   );
