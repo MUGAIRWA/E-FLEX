@@ -19,7 +19,7 @@ export interface AuthContextType {
   loading: boolean;
   isAuthenticated: boolean;
   login: (email: string, password: string, role?: string) => Promise<{ success: boolean; user?: User; message?: string }>;
-  register: (userData: any) => Promise<{ success: boolean; message?: string }>;
+  register: (userData: any) => Promise<{ success: boolean; user?: User; message?: string }>;
   logout: () => Promise<void>;
   refreshAccessToken: () => Promise<string>;
 }
@@ -80,10 +80,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       const response = await authAPI.login({ email, password });
 
-      const { token, ...userData } = response.data as any;
+      const { token, refreshToken, ...userData } = response.data as any;
 
       localStorage.setItem('accessToken', token);
-      // Note: Backend doesn't return refreshToken yet
+      if (refreshToken) {
+        localStorage.setItem('refreshToken', refreshToken);
+      }
 
       // Set token on both axios instances
       axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
@@ -111,10 +113,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       const response = await authAPI.register(userData);
 
-      const { token, ...newUser } = response.data.data as any;
+      const payload = (response.data?.data || response.data) as any;
+      const { token, refreshToken, ...newUser } = payload;
 
       localStorage.setItem('accessToken', token);
-      // Note: Backend doesn't return refreshToken yet
+      if (refreshToken) {
+        localStorage.setItem('refreshToken', refreshToken);
+      }
 
       // Set token on both axios instances
       axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
@@ -128,7 +133,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         localStorage.setItem('userName', `${(newUser as User).firstName} ${(newUser as User).lastName}`);
       }
 
-      return { success: true };
+      return { success: true, user: newUser as User };
     } catch (error) {
       console.error('Registration failed:', error);
       return {
