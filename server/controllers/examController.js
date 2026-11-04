@@ -1,379 +1,295 @@
-const Exam = require('../models/Exam');
-const Course = require('../models/Course');
-const Grade = require('../models/Grade');
-const multer = require('multer');
-const path = require('path');
+const { prisma } = require('../config/db');
+const { userBrief, studentBrief } = require('../utils/selects');
+const { asyncHandler, getPagination, paginated, filesToAttachments, percentage, letterGrade } = require('../utils/helpers');
+const { notifyUsers } = require('../utils/notify');
+const { isEnrolled } = require('../utils/permissions');
+const { examUpload } = require('../middleware/upload');
 
-// Configure multer for exam file uploads
-const examStorage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, 'uploads/exams/');
-  },
-  filename: (req, file, cb) => {
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-    cb(null, file.fieldname + '-' + uniqueSuffix + path.extname(file.originalname));
-  }
-});
-
-const examUpload = multer({
-  storage: examStorage,
-  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB limit per file
-  fileFilter: (req, file, cb) => {
-    const allowedTypes = /pdf|doc|docx|ppt|pptx|txt|rtf/;
-    const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
-    const mimetype = allowedTypes.test(file.mimetype);
-
-    if (mimetype && extname) {
-      return cb(null, true);
-    } else {
-      cb(new Error('Invalid file type. Only documents and presentations are allowed.'));
+const parseQuestions = (questions) => {
+  if (!questions) return [];
+  if (typeof questions === 'string') {
+    try {
+      return JSON.parse(questions);
+    } catch (e) {
+      return [];
     }
   }
+  return Array.isArray(questions) ? questions : [];
+};
+
+// Hide answer keys from students
+const stripAnswers = (exam) => ({
+  ...exam,
+  questions: (Array.isArray(exam.questions) ? exam.questions : []).map(({ correctAnswer, ...q }) => q)
 });
+
+/**
+ * Shared create logic for JSON and multipart exam creation.
+ * FIX: the old controller sent `examDate`/`instructions`, but the schema
+ * required `date` and had no `instructions`, so every create failed validation.
+ */
+const createExamRecord = async (req, res, { attachments = [], notificationTitle, verb }) => {
+  const { title, description, course, examDate, date, duration, totalMarks, questions, instructions, type } = req.body;
+  const when = examDate || date;
+
+  if (!title || !course || !when || !duration) {
+    return res.status(400).json({ message: 'title, course, examDate and duration are required' });
+  }
+
+  const courseDoc = await prisma.course.findUnique({
+    where: { id: course },
+    include: { students: { select: { id: true } } }
+  });
+  if (!courseDoc) {
+    return res.status(404).json({ message: 'Course not found' });
+  }
+  if (courseDoc.teacherId !== req.user.id) {
+    return res.status(403).json({ message: 'Not authorized to create exams for this course' });
+  }
+
+  const exam = await prisma.exam.create({
+    data: {
+      title,
+      description,
+      courseId: course,
+      teacherId: req.user.id,
+      ...(type ? { type } : {}),
+      examDate: new Date(when),
+      duration: parseInt(duration, 10),
+      ...(totalMarks !== undefined ? { totalMarks: Number(totalMarks) } : {}),
+      questions: parseQuestions(questions),
+      instructions,
+      attachments
+    }
+  });
+
+  await notifyUsers(
+    req.app.get('io'),
+    courseDoc.students.map((s) => s.id),
+    {
+      title: notificationTitle,
+      message: `New ${verb} "${title}" has been ${verb === 'quiz' ? 'uploaded' : 'scheduled'} in ${courseDoc.title}`,
+      type: 'warning',
+      link: `/student/exams/${exam.id}`
+    }
+  );
+
+  return res.status(201).json(exam);
+};
 
 // @desc    Create exam
 // @route   POST /api/exams
 // @access  Private/Teacher
-const createExam = async (req, res) => {
-  try {
-    const {
-      title,
-      description,
-      course,
-      examDate,
-      duration,
-      totalMarks,
-      questions,
-      instructions
-    } = req.body;
-
-    // Verify course exists and teacher owns it
-    const courseDoc = await Course.findById(course);
-    if (!courseDoc) {
-      return res.status(404).json({ message: 'Course not found' });
-    }
-
-    if (courseDoc.teacher.toString() !== req.user._id.toString()) {
-      return res.status(403).json({ message: 'Not authorized to create exams for this course' });
-    }
-
-    const exam = await Exam.create({
-      title,
-      description,
-      course,
-      teacher: req.user._id,
-      examDate: new Date(examDate),
-      duration,
-      totalMarks,
-      questions,
-      instructions
-    });
-
-    if (exam) {
-      // Emit notification to students
-      const io = req.app.get('io');
-      courseDoc.students.forEach(studentId => {
-        io.to(studentId.toString()).emit('notification', {
-          title: 'New Exam Scheduled',
-          message: `New exam "${title}" has been scheduled in ${courseDoc.title}`,
-          type: 'warning',
-          link: `/student/exams/${exam._id}`
-        });
-      });
-
-      res.status(201).json(exam);
-    } else {
-      res.status(400).json({ message: 'Invalid exam data' });
-    }
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: 'Server error', error: error.message });
-  }
-};
-
-// @desc    Get exams
-// @route   GET /api/exams
-// @access  Private
-const getExams = async (req, res) => {
-  try {
-    const { course, page = 1, limit = 10 } = req.query;
-
-    let query = {};
-
-    if (req.user.role === 'teacher') {
-      query.teacher = req.user._id;
-    } else if (req.user.role === 'student') {
-      // Find courses student is enrolled in
-      const studentCourses = await Course.find({ students: req.user._id }).select('_id');
-      const courseIds = studentCourses.map(c => c._id);
-      query.course = { $in: courseIds };
-    }
-
-    if (course) query.course = course;
-
-    const exams = await Exam.find(query)
-      .populate('course', 'title subject')
-      .populate('teacher', 'firstName lastName')
-      .limit(limit * 1)
-      .skip((page - 1) * limit)
-      .sort({ examDate: -1 });
-
-    const total = await Exam.countDocuments(query);
-
-    res.json({
-      exams,
-      totalPages: Math.ceil(total / limit),
-      currentPage: page,
-      total
-    });
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: 'Server error', error: error.message });
-  }
-};
-
-// @desc    Get exam by ID
-// @route   GET /api/exams/:id
-// @access  Private
-const getExam = async (req, res) => {
-  try {
-    const exam = await Exam.findById(req.params.id)
-      .populate('course', 'title subject teacher')
-      .populate('teacher', 'firstName lastName')
-      .populate('results.student', 'firstName lastName admissionNumber');
-
-    if (!exam) {
-      return res.status(404).json({ message: 'Exam not found' });
-    }
-
-    // Check permissions
-    if (req.user.role === 'student') {
-      const course = await Course.findById(exam.course);
-      if (!course.students.includes(req.user._id)) {
-        return res.status(403).json({ message: 'Not authorized to access this exam' });
-      }
-    } else if (req.user.role === 'teacher' && exam.teacher.toString() !== req.user._id.toString()) {
-      return res.status(403).json({ message: 'Not authorized to access this exam' });
-    }
-
-    res.json(exam);
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: 'Server error', error: error.message });
-  }
-};
-
-// @desc    Submit exam result
-// @route   POST /api/exams/:id/submit
-// @access  Private/Teacher
-const submitExamResult = async (req, res) => {
-  try {
-    const exam = await Exam.findById(req.params.id);
-
-    if (!exam) {
-      return res.status(404).json({ message: 'Exam not found' });
-    }
-
-    if (exam.teacher.toString() !== req.user._id.toString()) {
-      return res.status(403).json({ message: 'Not authorized to submit results for this exam' });
-    }
-
-    const { studentId, marks, answers, feedback } = req.body;
-
-    // Check if student is enrolled in the course
-    const course = await Course.findById(exam.course);
-    if (!course.students.includes(studentId)) {
-      return res.status(400).json({ message: 'Student is not enrolled in this course' });
-    }
-
-    // Check if result already exists
-    const existingResult = exam.results.find(
-      result => result.student.toString() === studentId
-    );
-
-    if (existingResult) {
-      return res.status(400).json({ message: 'Result already submitted for this student' });
-    }
-
-    const result = {
-      student: studentId,
-      marks,
-      answers,
-      feedback,
-      submittedAt: new Date()
-    };
-
-    exam.results.push(result);
-    await exam.save();
-
-    // Create or update grade record
-    let grade = await Grade.findOne({ student: studentId, course: exam.course });
-    if (!grade) {
-      grade = await Grade.create({
-        student: studentId,
-        course: exam.course,
-        grades: []
-      });
-    }
-
-    // Add exam grade to grades array
-    grade.grades.push({
-      type: 'exam',
-      exam: exam._id,
-      marks: marks,
-      totalMarks: exam.totalMarks,
-      percentage: (marks / exam.totalMarks) * 100,
-      date: new Date()
-    });
-
-    await grade.save();
-
-    // Emit notification to student
-    const io = req.app.get('io');
-    io.to(studentId).emit('notification', {
-      title: 'Exam Result Available',
-      message: `Your result for "${exam.title}" is now available`,
-      type: 'success',
-      link: `/student/exams/${exam._id}`
-    });
-
-    res.json({ message: 'Exam result submitted successfully' });
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: 'Server error', error: error.message });
-  }
-};
-
-// @desc    Update exam
-// @route   PUT /api/exams/:id
-// @access  Private/Teacher
-const updateExam = async (req, res) => {
-  try {
-    const exam = await Exam.findById(req.params.id);
-
-    if (!exam) {
-      return res.status(404).json({ message: 'Exam not found' });
-    }
-
-    if (exam.teacher.toString() !== req.user._id.toString()) {
-      return res.status(403).json({ message: 'Not authorized to update this exam' });
-    }
-
-    const {
-      title,
-      description,
-      examDate,
-      duration,
-      totalMarks,
-      questions,
-      instructions,
-      isActive
-    } = req.body;
-
-    exam.title = title || exam.title;
-    exam.description = description || exam.description;
-    exam.examDate = examDate ? new Date(examDate) : exam.examDate;
-    exam.duration = duration || exam.duration;
-    exam.totalMarks = totalMarks || exam.totalMarks;
-    exam.questions = questions || exam.questions;
-    exam.instructions = instructions || exam.instructions;
-    exam.isActive = isActive !== undefined ? isActive : exam.isActive;
-
-    const updatedExam = await exam.save();
-
-    res.json(updatedExam);
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: 'Server error', error: error.message });
-  }
-};
-
-// @desc    Delete exam
-// @route   DELETE /api/exams/:id
-// @access  Private/Teacher
-const deleteExam = async (req, res) => {
-  try {
-    const exam = await Exam.findById(req.params.id);
-
-    if (!exam) {
-      return res.status(404).json({ message: 'Exam not found' });
-    }
-
-    if (exam.teacher.toString() !== req.user._id.toString()) {
-      return res.status(403).json({ message: 'Not authorized to delete this exam' });
-    }
-
-    await exam.deleteOne();
-
-    res.json({ message: 'Exam deleted successfully' });
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: 'Server error', error: error.message });
-  }
-};
+const createExam = asyncHandler((req, res) =>
+  createExamRecord(req, res, { notificationTitle: 'New Exam Scheduled', verb: 'exam' })
+);
 
 // @desc    Create exam with file upload
 // @route   POST /api/exams/upload
 // @access  Private/Teacher
-const createExamWithFile = async (req, res) => {
-  try {
-    const {
-      title,
-      description,
-      course,
-      examDate,
-      duration,
-      totalMarks,
-      instructions
-    } = req.body;
+const createExamWithFile = asyncHandler((req, res) =>
+  createExamRecord(req, res, {
+    attachments: filesToAttachments(req.files, 'exams'),
+    notificationTitle: 'New Quiz Uploaded',
+    verb: 'quiz'
+  })
+);
 
-    // Verify course exists and teacher owns it
-    const courseDoc = await Course.findById(course);
-    if (!courseDoc) {
-      return res.status(404).json({ message: 'Course not found' });
-    }
+// @desc    Get exams
+// @route   GET /api/exams
+// @access  Private
+const getExams = asyncHandler(async (req, res) => {
+  const pg = getPagination(req.query);
+  const { course } = req.query;
 
-    if (courseDoc.teacher.toString() !== req.user._id.toString()) {
-      return res.status(403).json({ message: 'Not authorized to create exams for this course' });
-    }
-
-    const exam = await Exam.create({
-      title,
-      description,
-      course,
-      teacher: req.user._id,
-      examDate: new Date(examDate),
-      duration,
-      totalMarks,
-      instructions,
-      attachments: req.files ? req.files.map(file => ({
-        filename: file.filename,
-        originalName: file.originalname,
-        url: `/uploads/exams/${file.filename}`
-      })) : []
-    });
-
-    if (exam) {
-      // Emit notification to students
-      const io = req.app.get('io');
-      courseDoc.students.forEach(studentId => {
-        io.to(studentId.toString()).emit('notification', {
-          title: 'New Quiz Uploaded',
-          message: `New quiz "${title}" has been uploaded in ${courseDoc.title}`,
-          type: 'warning',
-          link: `/student/exams/${exam._id}`
-        });
-      });
-
-      res.status(201).json(exam);
-    } else {
-      res.status(400).json({ message: 'Invalid exam data' });
-    }
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: 'Server error', error: error.message });
+  const where = {};
+  if (req.user.role === 'teacher') where.teacherId = req.user.id;
+  else if (req.user.role === 'student') where.course = { students: { some: { id: req.user.id } } };
+  else if (req.user.role === 'parent') {
+    where.course = { students: { some: { linkedParents: { some: { id: req.user.id } } } } };
   }
-};
+  if (course) where.courseId = course;
+
+  const [exams, total] = await prisma.$transaction([
+    prisma.exam.findMany({
+      where,
+      include: {
+        course: { select: { id: true, title: true, subject: true } },
+        teacher: { select: userBrief }
+      },
+      orderBy: { examDate: 'desc' },
+      skip: pg.skip,
+      take: pg.limit
+    }),
+    prisma.exam.count({ where })
+  ]);
+
+  const shaped = req.user.role === 'teacher' || req.user.role === 'admin' ? exams : exams.map(stripAnswers);
+  res.json(paginated('exams', shaped, total, pg));
+});
+
+// @desc    Get exam by ID
+// @route   GET /api/exams/:id
+// @access  Private
+const getExam = asyncHandler(async (req, res) => {
+  const exam = await prisma.exam.findUnique({
+    where: { id: req.params.id },
+    include: {
+      course: { select: { id: true, title: true, subject: true, teacherId: true } },
+      teacher: { select: userBrief },
+      results: { include: { student: { select: studentBrief } } }
+    }
+  });
+
+  if (!exam) {
+    return res.status(404).json({ message: 'Exam not found' });
+  }
+
+  if (req.user.role === 'student') {
+    if (!(await isEnrolled(exam.courseId, req.user.id))) {
+      return res.status(403).json({ message: 'Not authorized to access this exam' });
+    }
+    // Students only see their own result and no answer key
+    return res.json(stripAnswers({ ...exam, results: exam.results.filter((r) => r.studentId === req.user.id) }));
+  }
+  if (req.user.role === 'teacher' && exam.teacherId !== req.user.id) {
+    return res.status(403).json({ message: 'Not authorized to access this exam' });
+  }
+  if (req.user.role === 'parent') {
+    return res.status(403).json({ message: 'Not authorized to access this exam' });
+  }
+
+  res.json(exam);
+});
+
+// @desc    Submit exam result
+// @route   POST /api/exams/:id/submit
+// @access  Private/Teacher
+const submitExamResult = asyncHandler(async (req, res) => {
+  const exam = await prisma.exam.findUnique({ where: { id: req.params.id } });
+
+  if (!exam) {
+    return res.status(404).json({ message: 'Exam not found' });
+  }
+  if (exam.teacherId !== req.user.id) {
+    return res.status(403).json({ message: 'Not authorized to submit results for this exam' });
+  }
+
+  const { studentId, marks, answers, feedback } = req.body;
+  const numericMarks = Number(marks);
+
+  if (!studentId || Number.isNaN(numericMarks) || numericMarks < 0 || numericMarks > exam.totalMarks) {
+    return res.status(400).json({ message: `studentId and marks (0-${exam.totalMarks}) are required` });
+  }
+  if (!(await isEnrolled(exam.courseId, studentId))) {
+    return res.status(400).json({ message: 'Student is not enrolled in this course' });
+  }
+
+  const existing = await prisma.examResult.findUnique({
+    where: { examId_studentId: { examId: exam.id, studentId } }
+  });
+  if (existing) {
+    return res.status(400).json({ message: 'Result already submitted for this student' });
+  }
+
+  const pct = percentage(numericMarks, exam.totalMarks);
+  const letter = letterGrade(pct);
+  const now = new Date();
+
+  // FIX: previously pushed into a non-existent `grade.grades` array. Now the
+  // result and the gradebook entry are written together in one transaction.
+  await prisma.$transaction([
+    prisma.examResult.create({
+      data: {
+        examId: exam.id,
+        studentId,
+        answers: Array.isArray(answers) ? answers : [],
+        marks: numericMarks,
+        percentage: pct,
+        grade: letter,
+        feedback,
+        submittedAt: now,
+        gradedAt: now,
+        gradedById: req.user.id
+      }
+    }),
+    prisma.grade.create({
+      data: {
+        studentId,
+        courseId: exam.courseId,
+        examId: exam.id,
+        type: exam.type === 'quiz' ? 'quiz' : 'exam',
+        title: exam.title,
+        marks: numericMarks,
+        totalMarks: exam.totalMarks,
+        percentage: pct,
+        grade: letter,
+        feedback,
+        gradedById: req.user.id
+      }
+    })
+  ]);
+
+  await notifyUsers(req.app.get('io'), [studentId], {
+    title: 'Exam Result Available',
+    message: `Your result for "${exam.title}" is now available`,
+    type: 'success',
+    link: `/student/exams/${exam.id}`
+  });
+
+  res.json({ message: 'Exam result submitted successfully' });
+});
+
+// @desc    Update exam
+// @route   PUT /api/exams/:id
+// @access  Private/Teacher
+const updateExam = asyncHandler(async (req, res) => {
+  const exam = await prisma.exam.findUnique({ where: { id: req.params.id } });
+
+  if (!exam) {
+    return res.status(404).json({ message: 'Exam not found' });
+  }
+  if (exam.teacherId !== req.user.id) {
+    return res.status(403).json({ message: 'Not authorized to update this exam' });
+  }
+
+  const { title, description, examDate, date, duration, totalMarks, questions, instructions, isActive, type } = req.body;
+  const when = examDate || date;
+
+  const updated = await prisma.exam.update({
+    where: { id: exam.id },
+    data: {
+      ...(title ? { title } : {}),
+      ...(description !== undefined ? { description } : {}),
+      ...(type ? { type } : {}),
+      ...(when ? { examDate: new Date(when) } : {}),
+      ...(duration ? { duration: parseInt(duration, 10) } : {}),
+      ...(totalMarks ? { totalMarks: Number(totalMarks) } : {}),
+      ...(questions ? { questions: parseQuestions(questions) } : {}),
+      ...(instructions !== undefined ? { instructions } : {}),
+      ...(isActive !== undefined ? { isActive: Boolean(isActive) } : {})
+    }
+  });
+
+  res.json(updated);
+});
+
+// @desc    Delete exam
+// @route   DELETE /api/exams/:id
+// @access  Private/Teacher
+const deleteExam = asyncHandler(async (req, res) => {
+  const exam = await prisma.exam.findUnique({ where: { id: req.params.id } });
+
+  if (!exam) {
+    return res.status(404).json({ message: 'Exam not found' });
+  }
+  if (exam.teacherId !== req.user.id) {
+    return res.status(403).json({ message: 'Not authorized to delete this exam' });
+  }
+
+  await prisma.exam.delete({ where: { id: exam.id } });
+  res.json({ message: 'Exam deleted successfully' });
+});
 
 module.exports = {
   createExam,

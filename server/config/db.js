@@ -1,17 +1,24 @@
-const mongoose = require('mongoose');
+const { PrismaClient } = require('@prisma/client');
+
+// Single shared Prisma client (avoid opening a new pool per import / nodemon reload)
+const globalForPrisma = globalThis;
+
+const prisma =
+  globalForPrisma.__eflexPrisma ||
+  new PrismaClient({
+    log: process.env.NODE_ENV === 'development' ? ['warn', 'error'] : ['error']
+  });
+
+if (process.env.NODE_ENV !== 'production') globalForPrisma.__eflexPrisma = prisma;
 
 const connectDB = async () => {
   try {
-    const conn = await mongoose.connect(process.env.MONGODB_URI, {
-      useNewUrlParser: true,
-      useUnifiedTopology: true,
-    });
-
-    console.log(`MongoDB Connected: ${conn.connection.host}`);
+    await prisma.$connect();
+    console.log('PostgreSQL connected');
   } catch (error) {
-    console.error(`Error: ${error.message}`);
+    console.error(`Database connection error: ${error.message}`);
     process.exit(1);
   }
 };
 
-module.exports = connectDB;
+module.exports = { prisma, connectDB };

@@ -1,257 +1,227 @@
-const Grade = require('../models/Grade');
-const Course = require('../models/Course');
-const User = require('../models/User');
+const { prisma } = require('../config/db');
+const { userBrief } = require('../utils/selects');
+const { asyncHandler, round2, percentage, letterGrade } = require('../utils/helpers');
+const { notifyUsers } = require('../utils/notify');
+const { canViewStudent, canTeacherAccessStudent, isEnrolled } = require('../utils/permissions');
+
+/**
+ * Grades are now one row per graded item (flat table).
+ * FIX: the old controllers read/wrote `grade.grades[]`, which did not exist on
+ * the Grade model, so every grade endpoint was broken.
+ */
+
+const summarize = (grades) => {
+  const totalMarks = grades.reduce((sum, g) => sum + g.marks, 0);
+  const totalPossible = grades.reduce((sum, g) => sum + g.totalMarks, 0);
+  return {
+    totalMarks,
+    totalPossible,
+    overallPercentage: round2(percentage(totalMarks, totalPossible)),
+    gradeCount: grades.length
+  };
+};
+
+const gradeInclude = {
+  course: { select: { id: true, title: true, subject: true } },
+  student: { select: { ...userBrief, admissionNumber: true } },
+  gradedBy: { select: userBrief }
+};
 
 // @desc    Get grades for a student
 // @route   GET /api/grades/student/:studentId
 // @access  Private
-const getStudentGrades = async (req, res) => {
-  try {
-    const { studentId } = req.params;
-    const { courseId } = req.query;
+const getStudentGrades = asyncHandler(async (req, res) => {
+  const { studentId } = req.params;
+  const { courseId } = req.query;
 
-    // Check permissions - students can only view their own grades, parents can view their children's, teachers can view their students'
-    if (req.user.role === 'student' && req.user._id.toString() !== studentId) {
-      return res.status(403).json({ message: 'Not authorized to view these grades' });
-    }
-
-    if (req.user.role === 'parent') {
-      const student = await User.findById(studentId);
-      if (!student || !student.linkedParents.includes(req.user._id)) {
-        return res.status(403).json({ message: 'Not authorized to view these grades' });
-      }
-    }
-
-    if (req.user.role === 'teacher') {
-      // Check if teacher teaches the student's class/stream
-      const teacher = await User.findById(req.user._id);
-      const student = await User.findById(studentId);
-      if (!teacher.classesTaught.includes(student.class) ||
-          (teacher.streamsTaught && teacher.streamsTaught.length > 0 && !teacher.streamsTaught.includes(student.stream))) {
-        return res.status(403).json({ message: 'Not authorized to view these grades' });
-      }
-    }
-
-    let query = { student: studentId };
-
-    if (courseId) {
-      query.course = courseId;
-    }
-
-    const grades = await Grade.find(query)
-      .populate('course', 'title subject')
-      .populate('student', 'firstName lastName admissionNumber')
-      .populate('grades.gradedBy', 'firstName lastName');
-
-    // Calculate overall statistics
-    const allGrades = grades.flatMap(grade => grade.grades);
-    const totalMarks = allGrades.reduce((sum, grade) => sum + grade.marks, 0);
-    const totalPossible = allGrades.reduce((sum, grade) => sum + grade.totalMarks, 0);
-    const overallPercentage = totalPossible > 0 ? (totalMarks / totalPossible) * 100 : 0;
-
-    res.json({
-      grades,
-      statistics: {
-        totalMarks,
-        totalPossible,
-        overallPercentage: Math.round(overallPercentage * 100) / 100,
-        gradeCount: allGrades.length
-      }
-    });
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: 'Server error', error: error.message });
+  if (!(await canViewStudent(req.user, studentId))) {
+    return res.status(403).json({ message: 'Not authorized to view these grades' });
   }
-};
+
+  const grades = await prisma.grade.findMany({
+    where: { studentId, ...(courseId ? { courseId } : {}) },
+    include: gradeInclude,
+    orderBy: { gradedAt: 'desc' }
+  });
+
+  res.json({ grades, statistics: summarize(grades) });
+});
 
 // @desc    Get grades for a course
 // @route   GET /api/grades/course/:courseId
 // @access  Private/Teacher
-const getCourseGrades = async (req, res) => {
-  try {
-    const { courseId } = req.params;
+const getCourseGrades = asyncHandler(async (req, res) => {
+  const { courseId } = req.params;
 
-    const course = await Course.findById(courseId);
-    if (!course) {
-      return res.status(404).json({ message: 'Course not found' });
-    }
-
-    if (course.teacher.toString() !== req.user._id.toString()) {
-      return res.status(403).json({ message: 'Not authorized to view course grades' });
-    }
-
-    const grades = await Grade.find({ course: courseId })
-      .populate('student', 'firstName lastName admissionNumber')
-      .populate('grades.gradedBy', 'firstName lastName');
-
-    // Calculate class statistics
-    const studentStats = grades.map(grade => {
-      const studentGrades = grade.grades;
-      const totalMarks = studentGrades.reduce((sum, g) => sum + g.marks, 0);
-      const totalPossible = studentGrades.reduce((sum, g) => sum + g.totalMarks, 0);
-      const percentage = totalPossible > 0 ? (totalMarks / totalPossible) * 100 : 0;
-
-      return {
-        student: grade.student,
-        totalMarks,
-        totalPossible,
-        percentage: Math.round(percentage * 100) / 100,
-        gradeCount: studentGrades.length
-      };
-    });
-
-    const classAverage = studentStats.length > 0
-      ? studentStats.reduce((sum, stat) => sum + stat.percentage, 0) / studentStats.length
-      : 0;
-
-    res.json({
-      grades,
-      classStatistics: {
-        studentCount: studentStats.length,
-        classAverage: Math.round(classAverage * 100) / 100,
-        studentStats
-      }
-    });
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: 'Server error', error: error.message });
+  const course = await prisma.course.findUnique({ where: { id: courseId } });
+  if (!course) {
+    return res.status(404).json({ message: 'Course not found' });
   }
-};
+  if (req.user.role !== 'admin' && course.teacherId !== req.user.id) {
+    return res.status(403).json({ message: 'Not authorized to view course grades' });
+  }
+
+  const grades = await prisma.grade.findMany({
+    where: { courseId },
+    include: gradeInclude,
+    orderBy: { gradedAt: 'desc' }
+  });
+
+  // Per-student statistics
+  const byStudent = new Map();
+  for (const g of grades) {
+    if (!byStudent.has(g.studentId)) byStudent.set(g.studentId, { student: g.student, items: [] });
+    byStudent.get(g.studentId).items.push(g);
+  }
+
+  const studentStats = [...byStudent.values()].map(({ student, items }) => {
+    const s = summarize(items);
+    return {
+      student,
+      totalMarks: s.totalMarks,
+      totalPossible: s.totalPossible,
+      percentage: s.overallPercentage,
+      gradeCount: s.gradeCount
+    };
+  });
+
+  const classAverage = studentStats.length
+    ? studentStats.reduce((sum, s) => sum + s.percentage, 0) / studentStats.length
+    : 0;
+
+  res.json({
+    grades,
+    classStatistics: {
+      studentCount: studentStats.length,
+      classAverage: round2(classAverage),
+      studentStats
+    }
+  });
+});
 
 // @desc    Add manual grade
 // @route   POST /api/grades
 // @access  Private/Teacher
-const addGrade = async (req, res) => {
-  try {
-    const { studentId, courseId, type, title, marks, totalMarks, feedback } = req.body;
+const addGrade = asyncHandler(async (req, res) => {
+  const { studentId, courseId, type = 'quiz', title, marks, totalMarks, feedback } = req.body;
 
-    // Verify course exists and teacher owns it
-    const course = await Course.findById(courseId);
-    if (!course) {
-      return res.status(404).json({ message: 'Course not found' });
-    }
+  const numericMarks = Number(marks);
+  const numericTotal = Number(totalMarks);
+  if (!studentId || !courseId || Number.isNaN(numericMarks) || !(numericTotal > 0) || numericMarks < 0 || numericMarks > numericTotal) {
+    return res.status(400).json({ message: 'studentId, courseId, marks and totalMarks (marks ≤ totalMarks) are required' });
+  }
+  if (!['assignment', 'exam', 'quiz'].includes(type)) {
+    return res.status(400).json({ message: 'type must be assignment, exam or quiz' });
+  }
 
-    // Check if teacher teaches the student's class/stream
-    const teacher = await User.findById(req.user._id);
-    const student = await User.findById(studentId);
-    if (!teacher.classesTaught.includes(student.class) ||
-        (teacher.streamsTaught && teacher.streamsTaught.length > 0 && !teacher.streamsTaught.includes(student.stream))) {
-      return res.status(403).json({ message: 'Not authorized to add grades for this student' });
-    }
+  const course = await prisma.course.findUnique({ where: { id: courseId } });
+  if (!course) {
+    return res.status(404).json({ message: 'Course not found' });
+  }
 
-    // Verify student is enrolled
-    if (!course.students.includes(studentId)) {
-      return res.status(400).json({ message: 'Student is not enrolled in this course' });
-    }
+  const student = await prisma.user.findUnique({ where: { id: studentId } });
+  if (!student || student.role !== 'student') {
+    return res.status(404).json({ message: 'Student not found' });
+  }
 
-    // Find or create grade record
-    let grade = await Grade.findOne({ student: studentId, course: courseId });
-    if (!grade) {
-      grade = await Grade.create({
-        student: studentId,
-        course: courseId,
-        grades: []
-      });
-    }
+  if (course.teacherId !== req.user.id && !(await canTeacherAccessStudent(req.user, student, courseId))) {
+    return res.status(403).json({ message: 'Not authorized to add grades for this student' });
+  }
+  if (!(await isEnrolled(courseId, studentId))) {
+    return res.status(400).json({ message: 'Student is not enrolled in this course' });
+  }
 
-    // Add new grade
-    const newGrade = {
+  const pct = percentage(numericMarks, numericTotal);
+  const grade = await prisma.grade.create({
+    data: {
+      studentId,
+      courseId,
       type,
       title,
-      marks,
-      totalMarks,
-      percentage: (marks / totalMarks) * 100,
+      marks: numericMarks,
+      totalMarks: numericTotal,
+      percentage: pct,
+      grade: letterGrade(pct),
       feedback,
-      gradedBy: req.user._id,
-      date: new Date()
-    };
+      gradedById: req.user.id
+    },
+    include: gradeInclude
+  });
 
-    grade.grades.push(newGrade);
-    await grade.save();
+  await notifyUsers(req.app.get('io'), [studentId], {
+    title: 'New Grade Available',
+    message: `You have received a new grade for "${title || type}" in ${course.title}`,
+    type: 'success',
+    link: '/student/grades'
+  });
 
-    // Emit notification to student
-    const io = req.app.get('io');
-    io.to(studentId).emit('notification', {
-      title: 'New Grade Available',
-      message: `You have received a new grade for "${title}" in ${course.title}`,
-      type: 'success',
-      link: `/student/grades`
-    });
+  res.status(201).json({ message: 'Grade added successfully', grade });
+});
 
-    res.status(201).json({ message: 'Grade added successfully', grade: newGrade });
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: 'Server error', error: error.message });
+const loadGradeForTeacher = async (req, res) => {
+  const grade = await prisma.grade.findUnique({
+    where: { id: req.params.gradeId },
+    include: { course: true, student: true }
+  });
+  if (!grade) {
+    res.status(404).json({ message: 'Grade record not found' });
+    return null;
   }
+  const allowed =
+    req.user.role === 'admin' ||
+    grade.course.teacherId === req.user.id ||
+    (await canTeacherAccessStudent(req.user, grade.student, grade.courseId));
+  if (!allowed) {
+    res.status(403).json({ message: 'Not authorized to modify this grade' });
+    return null;
+  }
+  return grade;
 };
 
 // @desc    Update grade
-// @route   PUT /api/grades/:gradeId/item/:itemId
+// @route   PUT /api/grades/:gradeId   (legacy: /api/grades/:gradeId/item/:itemId)
 // @access  Private/Teacher
-const updateGrade = async (req, res) => {
-  try {
-    const { gradeId, itemId } = req.params;
-    const { marks, totalMarks, feedback } = req.body;
+const updateGrade = asyncHandler(async (req, res) => {
+  const grade = await loadGradeForTeacher(req, res);
+  if (!grade) return;
 
-    const grade = await Grade.findById(gradeId);
-    if (!grade) {
-      return res.status(404).json({ message: 'Grade record not found' });
-    }
+  const { marks, totalMarks, feedback, title } = req.body;
+  const newMarks = marks !== undefined ? Number(marks) : grade.marks;
+  const newTotal = totalMarks !== undefined ? Number(totalMarks) : grade.totalMarks;
 
-    // Check if teacher teaches the student's class/stream
-    const teacher = await User.findById(req.user._id);
-    const student = await User.findById(grade.student);
-    if (!teacher.classesTaught.includes(student.class) ||
-        (teacher.streamsTaught && teacher.streamsTaught.length > 0 && !teacher.streamsTaught.includes(student.stream))) {
-      return res.status(403).json({ message: 'Not authorized to update this grade' });
-    }
-
-    const gradeItem = grade.grades.id(itemId);
-    if (!gradeItem) {
-      return res.status(404).json({ message: 'Grade item not found' });
-    }
-
-    gradeItem.marks = marks !== undefined ? marks : gradeItem.marks;
-    gradeItem.totalMarks = totalMarks !== undefined ? totalMarks : gradeItem.totalMarks;
-    gradeItem.percentage = (gradeItem.marks / gradeItem.totalMarks) * 100;
-    gradeItem.feedback = feedback !== undefined ? feedback : gradeItem.feedback;
-
-    await grade.save();
-
-    res.json({ message: 'Grade updated successfully' });
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: 'Server error', error: error.message });
+  if (Number.isNaN(newMarks) || !(newTotal > 0) || newMarks < 0 || newMarks > newTotal) {
+    return res.status(400).json({ message: 'Invalid marks' });
   }
-};
+
+  const pct = percentage(newMarks, newTotal);
+  const updated = await prisma.grade.update({
+    where: { id: grade.id },
+    data: {
+      marks: newMarks,
+      totalMarks: newTotal,
+      percentage: pct,
+      grade: letterGrade(pct),
+      ...(feedback !== undefined ? { feedback } : {}),
+      ...(title !== undefined ? { title } : {}),
+      gradedById: req.user.id,
+      gradedAt: new Date()
+    },
+    include: gradeInclude
+  });
+
+  res.json({ message: 'Grade updated successfully', grade: updated });
+});
 
 // @desc    Delete grade
-// @route   DELETE /api/grades/:gradeId/item/:itemId
+// @route   DELETE /api/grades/:gradeId   (legacy: /api/grades/:gradeId/item/:itemId)
 // @access  Private/Teacher
-const deleteGrade = async (req, res) => {
-  try {
-    const { gradeId, itemId } = req.params;
+const deleteGrade = asyncHandler(async (req, res) => {
+  const grade = await loadGradeForTeacher(req, res);
+  if (!grade) return;
 
-    const grade = await Grade.findById(gradeId);
-    if (!grade) {
-      return res.status(404).json({ message: 'Grade record not found' });
-    }
-
-    // Verify teacher owns the course
-    const course = await Course.findById(grade.course);
-    if (course.teacher.toString() !== req.user._id.toString()) {
-      return res.status(403).json({ message: 'Not authorized to delete this grade' });
-    }
-
-    grade.grades.pull(itemId);
-    await grade.save();
-
-    res.json({ message: 'Grade deleted successfully' });
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: 'Server error', error: error.message });
-  }
-};
+  await prisma.grade.delete({ where: { id: grade.id } });
+  res.json({ message: 'Grade deleted successfully' });
+});
 
 module.exports = {
   getStudentGrades,

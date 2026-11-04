@@ -1,341 +1,245 @@
-const Course = require('../models/Course');
-const User = require('../models/User');
-const multer = require('multer');
-const path = require('path');
+const { prisma } = require('../config/db');
+const { userWithEmail, studentBrief } = require('../utils/selects');
+const { asyncHandler, getPagination, paginated } = require('../utils/helpers');
+const { notifyUsers } = require('../utils/notify');
+const { materialUpload } = require('../middleware/upload');
 
-// Configure multer for material uploads
-const materialStorage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, 'uploads/materials/');
-  },
-  filename: (req, file, cb) => {
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-    cb(null, file.fieldname + '-' + uniqueSuffix + path.extname(file.originalname));
-  }
-});
+const courseInclude = {
+  teacher: { select: userWithEmail },
+  students: { select: studentBrief }
+};
 
-const materialUpload = multer({
-  storage: materialStorage,
-  limits: { fileSize: 50 * 1024 * 1024 }, // 50MB limit
-  fileFilter: (req, file, cb) => {
-    const allowedTypes = /jpeg|jpg|png|gif|pdf|doc|docx|ppt|pptx|mp4|avi|mov/;
-    const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
-    const mimetype = allowedTypes.test(file.mimetype);
-
-    if (mimetype && extname) {
-      return cb(null, true);
-    } else {
-      cb(new Error('Invalid file type'));
-    }
-  }
-});
+const canManageCourse = (user, course) => user.role === 'admin' || course.teacherId === user.id;
 
 // @desc    Create course
 // @route   POST /api/courses
 // @access  Private/Admin
-const createCourse = async (req, res) => {
-  try {
-    const {
-      title,
-      description,
-      subject,
-      teacher,
-      class: courseClass,
-      stream,
-      schedule,
-      syllabus,
-      materials
-    } = req.body;
+const createCourse = asyncHandler(async (req, res) => {
+  const { title, description, subject, teacher, class: courseClass, stream, schedule, syllabus, materials } = req.body;
 
-    // Verify teacher exists and is a teacher
-    const teacherUser = await User.findById(teacher);
-    if (!teacherUser || teacherUser.role !== 'teacher') {
-      return res.status(400).json({ message: 'Invalid teacher' });
-    }
-
-    // Verify teacher teaches the subject
-    if (!teacherUser.subjects.includes(subject)) {
-      return res.status(400).json({ message: 'Teacher does not teach this subject' });
-    }
-
-    const course = await Course.create({
-      title,
-      description,
-      subject,
-      teacher,
-      class: courseClass,
-      stream,
-      schedule,
-      syllabus,
-      materials
-    });
-
-    if (course) {
-      res.status(201).json(course);
-    } else {
-      res.status(400).json({ message: 'Invalid course data' });
-    }
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: 'Server error', error: error.message });
+  if (!title || !subject || !teacher) {
+    return res.status(400).json({ message: 'title, subject and teacher are required' });
   }
-};
+
+  const teacherUser = await prisma.user.findUnique({ where: { id: teacher } });
+  if (!teacherUser || teacherUser.role !== 'teacher') {
+    return res.status(400).json({ message: 'Invalid teacher' });
+  }
+  if (!teacherUser.subjects.includes(subject)) {
+    return res.status(400).json({ message: 'Teacher does not teach this subject' });
+  }
+
+  const course = await prisma.course.create({
+    data: {
+      title,
+      description,
+      subject,
+      teacherId: teacher,
+      class: courseClass,
+      stream,
+      schedule: schedule || undefined,
+      syllabus,
+      materials: Array.isArray(materials) ? materials : []
+    },
+    include: courseInclude
+  });
+
+  res.status(201).json(course);
+});
 
 // @desc    Get all courses
 // @route   GET /api/courses
 // @access  Private
-const getCourses = async (req, res) => {
-  try {
-    const { teacher, student, subject, page = 1, limit = 10 } = req.query;
+const getCourses = asyncHandler(async (req, res) => {
+  const pg = getPagination(req.query);
+  const { teacher, student, subject } = req.query;
 
-    let query = {};
+  const where = {};
+  if (req.user.role === 'teacher') where.teacherId = req.user.id;
+  else if (req.user.role === 'student') where.students = { some: { id: req.user.id } };
+  else if (req.user.role === 'parent') where.students = { some: { linkedParents: { some: { id: req.user.id } } } };
 
-    if (req.user.role === 'teacher') {
-      query.teacher = req.user._id;
-    } else if (req.user.role === 'student') {
-      query.students = req.user._id;
-    }
-
-    if (teacher) query.teacher = teacher;
-    if (student) query.students = student;
-    if (subject) query.subject = subject;
-
-    const courses = await Course.find(query)
-      .populate('teacher', 'firstName lastName email')
-      .populate('students', 'firstName lastName email admissionNumber class stream')
-      .limit(limit * 1)
-      .skip((page - 1) * limit)
-      .sort({ createdAt: -1 });
-
-    const total = await Course.countDocuments(query);
-
-    res.json({
-      courses,
-      totalPages: Math.ceil(total / limit),
-      currentPage: page,
-      total
-    });
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: 'Server error', error: error.message });
+  // Only admins may filter arbitrarily by teacher/student
+  if (req.user.role === 'admin') {
+    if (teacher) where.teacherId = teacher;
+    if (student) where.students = { some: { id: student } };
   }
-};
+  if (subject) where.subject = subject;
+
+  const [courses, total] = await prisma.$transaction([
+    prisma.course.findMany({
+      where,
+      include: courseInclude,
+      orderBy: { createdAt: 'desc' },
+      skip: pg.skip,
+      take: pg.limit
+    }),
+    prisma.course.count({ where })
+  ]);
+
+  res.json(paginated('courses', courses, total, pg));
+});
 
 // @desc    Get course by ID
 // @route   GET /api/courses/:id
 // @access  Private
-const getCourse = async (req, res) => {
-  try {
-    const course = await Course.findById(req.params.id)
-      .populate('teacher', 'firstName lastName email')
-      .populate('students', 'firstName lastName email admissionNumber class stream');
+const getCourse = asyncHandler(async (req, res) => {
+  const course = await prisma.course.findUnique({ where: { id: req.params.id }, include: courseInclude });
 
-    if (!course) {
-      return res.status(404).json({ message: 'Course not found' });
-    }
-
-    // Check if user has access to this course
-    if (req.user.role === 'student' && !course.students.includes(req.user._id)) {
-      return res.status(403).json({ message: 'Not authorized to access this course' });
-    }
-
-    if (req.user.role === 'teacher' && course.teacher._id.toString() !== req.user._id.toString()) {
-      return res.status(403).json({ message: 'Not authorized to access this course' });
-    }
-
-    res.json(course);
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: 'Server error', error: error.message });
+  if (!course) {
+    return res.status(404).json({ message: 'Course not found' });
   }
-};
+
+  if (req.user.role === 'student' && !course.students.some((s) => s.id === req.user.id)) {
+    return res.status(403).json({ message: 'Not authorized to access this course' });
+  }
+  if (req.user.role === 'teacher' && course.teacherId !== req.user.id) {
+    return res.status(403).json({ message: 'Not authorized to access this course' });
+  }
+
+  res.json(course);
+});
 
 // @desc    Update course
 // @route   PUT /api/courses/:id
 // @access  Private/Admin/Teacher
-const updateCourse = async (req, res) => {
-  try {
-    const course = await Course.findById(req.params.id);
+const updateCourse = asyncHandler(async (req, res) => {
+  const course = await prisma.course.findUnique({ where: { id: req.params.id } });
 
-    if (!course) {
-      return res.status(404).json({ message: 'Course not found' });
-    }
-
-    // Check permissions
-    if (req.user.role !== 'admin' && course.teacher.toString() !== req.user._id.toString()) {
-      return res.status(403).json({ message: 'Not authorized to update this course' });
-    }
-
-    const {
-      title,
-      description,
-      subject,
-      teacher,
-      class: courseClass,
-      stream,
-      schedule,
-      syllabus,
-      materials,
-      isActive
-    } = req.body;
-
-    course.title = title || course.title;
-    course.description = description || course.description;
-    course.subject = subject || course.subject;
-    course.class = courseClass || course.class;
-    course.stream = stream || course.stream;
-    course.schedule = schedule || course.schedule;
-    course.syllabus = syllabus || course.syllabus;
-    course.materials = materials || course.materials;
-    course.isActive = isActive !== undefined ? isActive : course.isActive;
-
-    if (teacher && req.user.role === 'admin') {
-      course.teacher = teacher;
-    }
-
-    const updatedCourse = await course.save();
-
-    res.json(updatedCourse);
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: 'Server error', error: error.message });
+  if (!course) {
+    return res.status(404).json({ message: 'Course not found' });
   }
-};
+  if (!canManageCourse(req.user, course)) {
+    return res.status(403).json({ message: 'Not authorized to update this course' });
+  }
+
+  const { title, description, subject, teacher, class: courseClass, stream, schedule, syllabus, materials, isActive } = req.body;
+
+  const data = {
+    ...(title ? { title } : {}),
+    ...(description !== undefined ? { description } : {}),
+    ...(subject ? { subject } : {}),
+    ...(courseClass !== undefined ? { class: courseClass } : {}),
+    ...(stream !== undefined ? { stream } : {}),
+    ...(schedule ? { schedule } : {}),
+    ...(syllabus !== undefined ? { syllabus } : {}),
+    ...(Array.isArray(materials) ? { materials } : {}),
+    ...(isActive !== undefined ? { isActive: Boolean(isActive) } : {})
+  };
+
+  if (teacher && req.user.role === 'admin') {
+    const teacherUser = await prisma.user.findUnique({ where: { id: teacher } });
+    if (!teacherUser || teacherUser.role !== 'teacher') {
+      return res.status(400).json({ message: 'Invalid teacher' });
+    }
+    data.teacherId = teacher;
+  }
+
+  const updated = await prisma.course.update({ where: { id: course.id }, data, include: courseInclude });
+  res.json(updated);
+});
 
 // @desc    Enroll student in course
 // @route   POST /api/courses/:id/enroll
 // @access  Private/Admin/Teacher
-const enrollStudent = async (req, res) => {
-  try {
-    const course = await Course.findById(req.params.id);
+const enrollStudent = asyncHandler(async (req, res) => {
+  const course = await prisma.course.findUnique({
+    where: { id: req.params.id },
+    include: { students: { select: { id: true } } }
+  });
 
-    if (!course) {
-      return res.status(404).json({ message: 'Course not found' });
-    }
-
-    // Check permissions
-    if (req.user.role !== 'admin' && course.teacher.toString() !== req.user._id.toString()) {
-      return res.status(403).json({ message: 'Not authorized to enroll students' });
-    }
-
-    const { studentId } = req.body;
-
-    // Verify student exists
-    const student = await User.findById(studentId);
-    if (!student || student.role !== 'student') {
-      return res.status(400).json({ message: 'Invalid student' });
-    }
-
-    // Check if already enrolled
-    if (course.students.includes(studentId)) {
-      return res.status(400).json({ message: 'Student already enrolled' });
-    }
-
-    course.students.push(studentId);
-    await course.save();
-
-    res.json({ message: 'Student enrolled successfully' });
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: 'Server error', error: error.message });
+  if (!course) {
+    return res.status(404).json({ message: 'Course not found' });
   }
-};
+  if (!canManageCourse(req.user, course)) {
+    return res.status(403).json({ message: 'Not authorized to enroll students' });
+  }
+
+  const { studentId } = req.body;
+  const student = studentId ? await prisma.user.findUnique({ where: { id: studentId } }) : null;
+  if (!student || student.role !== 'student') {
+    return res.status(400).json({ message: 'Invalid student' });
+  }
+
+  if (course.students.some((s) => s.id === studentId)) {
+    return res.status(400).json({ message: 'Student already enrolled' });
+  }
+
+  await prisma.course.update({ where: { id: course.id }, data: { students: { connect: { id: studentId } } } });
+  res.json({ message: 'Student enrolled successfully' });
+});
 
 // @desc    Remove student from course
 // @route   DELETE /api/courses/:id/students/:studentId
 // @access  Private/Admin/Teacher
-const removeStudent = async (req, res) => {
-  try {
-    const course = await Course.findById(req.params.id);
+const removeStudent = asyncHandler(async (req, res) => {
+  const course = await prisma.course.findUnique({ where: { id: req.params.id } });
 
-    if (!course) {
-      return res.status(404).json({ message: 'Course not found' });
-    }
-
-    // Check permissions
-    if (req.user.role !== 'admin' && course.teacher.toString() !== req.user._id.toString()) {
-      return res.status(403).json({ message: 'Not authorized to remove students' });
-    }
-
-    const { studentId } = req.params;
-
-    course.students = course.students.filter(id => id.toString() !== studentId);
-    await course.save();
-
-    res.json({ message: 'Student removed successfully' });
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: 'Server error', error: error.message });
+  if (!course) {
+    return res.status(404).json({ message: 'Course not found' });
   }
-};
+  if (!canManageCourse(req.user, course)) {
+    return res.status(403).json({ message: 'Not authorized to remove students' });
+  }
+
+  await prisma.course.update({
+    where: { id: course.id },
+    data: { students: { disconnect: { id: req.params.studentId } } }
+  });
+
+  res.json({ message: 'Student removed successfully' });
+});
 
 // @desc    Delete course
 // @route   DELETE /api/courses/:id
 // @access  Private/Admin
-const deleteCourse = async (req, res) => {
-  try {
-    const course = await Course.findById(req.params.id);
-
-    if (!course) {
-      return res.status(404).json({ message: 'Course not found' });
-    }
-
-    await course.deleteOne();
-
-    res.json({ message: 'Course deleted successfully' });
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: 'Server error', error: error.message });
-  }
-};
+const deleteCourse = asyncHandler(async (req, res) => {
+  // Assignments, exams, grades and attendance cascade via FKs
+  await prisma.course.delete({ where: { id: req.params.id } });
+  res.json({ message: 'Course deleted successfully' });
+});
 
 // @desc    Upload material to course
 // @route   POST /api/courses/:id/materials
 // @access  Private/Teacher
-const uploadMaterial = async (req, res) => {
-  try {
-    const course = await Course.findById(req.params.id);
+const uploadMaterial = asyncHandler(async (req, res) => {
+  const course = await prisma.course.findUnique({
+    where: { id: req.params.id },
+    include: { students: { select: { id: true } } }
+  });
 
-    if (!course) {
-      return res.status(404).json({ message: 'Course not found' });
-    }
-
-    if (course.teacher.toString() !== req.user._id.toString()) {
-      return res.status(403).json({ message: 'Not authorized to upload materials to this course' });
-    }
-
-    const { title } = req.body;
-
-    if (!req.file) {
-      return res.status(400).json({ message: 'No file uploaded' });
-    }
-
-    const material = {
-      title: title || req.file.originalname,
-      url: `/uploads/materials/${req.file.filename}`,
-      uploadedAt: Date.now()
-    };
-
-    course.materials.push(material);
-    await course.save();
-
-    // Emit notification to students
-    const io = req.app.get('io');
-    course.students.forEach(studentId => {
-      io.to(studentId.toString()).emit('notification', {
-        title: 'New Material Uploaded',
-        message: `New material "${material.title}" has been uploaded to ${course.title}`,
-        type: 'info',
-        link: `/student/courses/${course._id}`
-      });
-    });
-
-    res.status(201).json(material);
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: 'Server error', error: error.message });
+  if (!course) {
+    return res.status(404).json({ message: 'Course not found' });
   }
-};
+  if (course.teacherId !== req.user.id) {
+    return res.status(403).json({ message: 'Not authorized to upload materials to this course' });
+  }
+  if (!req.file) {
+    return res.status(400).json({ message: 'No file uploaded' });
+  }
+
+  const material = {
+    title: req.body.title || req.file.originalname,
+    url: `/uploads/materials/${req.file.filename}`,
+    uploadedAt: new Date().toISOString()
+  };
+
+  const materials = Array.isArray(course.materials) ? course.materials : [];
+  await prisma.course.update({ where: { id: course.id }, data: { materials: [...materials, material] } });
+
+  await notifyUsers(
+    req.app.get('io'),
+    course.students.map((s) => s.id),
+    {
+      title: 'New Material Uploaded',
+      message: `New material "${material.title}" has been uploaded to ${course.title}`,
+      type: 'info',
+      link: `/student/courses/${course.id}`
+    }
+  );
+
+  res.status(201).json(material);
+});
 
 module.exports = {
   createCourse,

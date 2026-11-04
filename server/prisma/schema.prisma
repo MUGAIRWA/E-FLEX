@@ -1,0 +1,350 @@
+// E-FLEX PostgreSQL schema (replaces the former Mongoose models)
+// Docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  student
+  teacher
+  parent
+  admin
+}
+
+enum AttendanceStatus {
+  present
+  absent
+  late
+  excused
+}
+
+// ───────────────────────────── Users ─────────────────────────────
+
+model User {
+  id           String    @id @default(uuid())
+  firstName    String
+  lastName     String
+  email        String    @unique
+  password     String
+  role         Role
+  phoneNumber  String?
+  profileImage String    @default("")
+  isActive     Boolean   @default(true)
+  lastLogin    DateTime?
+
+  // Student-specific
+  studentId       String?   @unique
+  admissionNumber String?
+  class           String?
+  stream          String?
+  address         String?
+  dateOfBirth     DateTime?
+
+  // Parent-specific
+  childEmail String?
+
+  // Teacher-specific
+  teacherId     String?  @unique
+  subjects      String[] @default([])
+  /// Array of { class: string, stream?: string }
+  classesTaught Json     @default("[]")
+  streamsTaught String[] @default([])
+
+  // Preferences
+  notifications Json    @default("{\"assignmentReminders\":true,\"newGradesAlert\":true,\"announcements\":true}")
+  theme         String  @default("light")
+  textSize      Int     @default(100)
+  language      String?
+  /// Array of { device, loginTime, ipAddress }
+  sessions      Json    @default("[]")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Parent <-> child links (self many-to-many)
+  linkedParents User[] @relation("ParentChild")
+  children      User[] @relation("ParentChild")
+
+  coursesTaught     Course[]       @relation("CourseTeacher")
+  enrolledCourses   Course[]       @relation("CourseStudents")
+  assignments       Assignment[]   @relation("AssignmentTeacher")
+  submissions       Submission[]   @relation("SubmissionStudent")
+  gradedSubmissions Submission[]   @relation("SubmissionGrader")
+  exams             Exam[]         @relation("ExamTeacher")
+  examResults       ExamResult[]   @relation("ExamResultStudent")
+  gradedExamResults ExamResult[]   @relation("ExamResultGrader")
+  grades            Grade[]        @relation("GradeStudent")
+  gradesGiven       Grade[]        @relation("GradeGrader")
+  attendance        Attendance[]   @relation("AttendanceStudent")
+  attendanceMarked  Attendance[]   @relation("AttendanceMarker")
+  announcements     Announcement[]
+  sentMessages      Message[]      @relation("MessageSender")
+  receivedMessages  Message[]      @relation("MessageReceiver")
+  notificationItems Notification[]
+  subjectsCreated   Subject[]      @relation("SubjectCreator")
+  subjectsTeaching  Subject[]      @relation("SubjectTeachers")
+  refreshTokens     RefreshToken[]
+
+  @@index([role])
+  @@index([class, stream])
+  @@map("users")
+}
+
+model RefreshToken {
+  id        String   @id @default(uuid())
+  /// SHA-256 hash of the token (raw token is never stored)
+  tokenHash String   @unique
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@map("refresh_tokens")
+}
+
+// ──────────────────────────── Academics ────────────────────────────
+
+model Subject {
+  id          String   @id @default(uuid())
+  name        String   @unique @db.VarChar(50)
+  description String?  @db.VarChar(500)
+  createdById String
+  createdBy   User     @relation("SubjectCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  teachers    User[]   @relation("SubjectTeachers")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("subjects")
+}
+
+model Course {
+  id          String   @id @default(uuid())
+  title       String
+  description String?
+  subject     String
+  teacherId   String
+  teacher     User     @relation("CourseTeacher", fields: [teacherId], references: [id], onDelete: Restrict)
+  students    User[]   @relation("CourseStudents")
+  class       String?
+  stream      String?
+  /// { days: string[], startTime: string, endTime: string }
+  schedule    Json?
+  syllabus    String?
+  /// Array of { title, url, uploadedAt }
+  materials   Json     @default("[]")
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  assignments Assignment[]
+  exams       Exam[]
+  grades      Grade[]
+  attendance  Attendance[]
+
+  @@index([teacherId])
+  @@map("courses")
+}
+
+model Assignment {
+  id           String       @id @default(uuid())
+  title        String
+  description  String?
+  courseId     String
+  course       Course       @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  teacherId    String
+  teacher      User         @relation("AssignmentTeacher", fields: [teacherId], references: [id], onDelete: Restrict)
+  dueDate      DateTime
+  totalMarks   Float        @default(100)
+  instructions String?
+  /// Array of { filename, originalName, url, uploadedAt }
+  attachments  Json         @default("[]")
+  isActive     Boolean      @default(true)
+  submissions  Submission[]
+  grades       Grade[]
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  @@index([courseId])
+  @@map("assignments")
+}
+
+model Submission {
+  id           String     @id @default(uuid())
+  assignmentId String
+  assignment   Assignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+  studentId    String
+  student      User       @relation("SubmissionStudent", fields: [studentId], references: [id], onDelete: Cascade)
+  content      String?
+  attachments  Json       @default("[]")
+  marks        Float?
+  feedback     String?
+  status       String     @default("submitted") // submitted | graded | late
+  submittedAt  DateTime   @default(now())
+  gradedAt     DateTime?
+  gradedById   String?
+  gradedBy     User?      @relation("SubmissionGrader", fields: [gradedById], references: [id], onDelete: SetNull)
+
+  @@unique([assignmentId, studentId])
+  @@map("submissions")
+}
+
+model Exam {
+  id           String       @id @default(uuid())
+  title        String
+  description  String?
+  courseId     String
+  course       Course       @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  teacherId    String
+  teacher      User         @relation("ExamTeacher", fields: [teacherId], references: [id], onDelete: Restrict)
+  type         String       @default("quiz") // quiz | midterm | final | assignment
+  examDate     DateTime
+  duration     Int // minutes
+  totalMarks   Float        @default(100)
+  instructions String?
+  /// Array of { question, options[], correctAnswer, marks, type }
+  questions    Json         @default("[]")
+  attachments  Json         @default("[]")
+  isActive     Boolean      @default(true)
+  results      ExamResult[]
+  grades       Grade[]
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  @@index([courseId])
+  @@map("exams")
+}
+
+model ExamResult {
+  id          String    @id @default(uuid())
+  examId      String
+  exam        Exam      @relation(fields: [examId], references: [id], onDelete: Cascade)
+  studentId   String
+  student     User      @relation("ExamResultStudent", fields: [studentId], references: [id], onDelete: Cascade)
+  /// Array of { questionIndex, answer, marks }
+  answers     Json      @default("[]")
+  marks       Float
+  percentage  Float
+  grade       String
+  feedback    String?
+  submittedAt DateTime  @default(now())
+  gradedAt    DateTime?
+  gradedById  String?
+  gradedBy    User?     @relation("ExamResultGrader", fields: [gradedById], references: [id], onDelete: SetNull)
+
+  @@unique([examId, studentId])
+  @@map("exam_results")
+}
+
+/// One row per graded item (flat — fixes the old nested `grades[]` mismatch)
+model Grade {
+  id           String      @id @default(uuid())
+  studentId    String
+  student      User        @relation("GradeStudent", fields: [studentId], references: [id], onDelete: Cascade)
+  courseId     String
+  course       Course      @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  assignmentId String?
+  assignment   Assignment? @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+  examId       String?
+  exam         Exam?       @relation(fields: [examId], references: [id], onDelete: Cascade)
+  type         String // assignment | exam | quiz
+  title        String?
+  marks        Float
+  totalMarks   Float
+  percentage   Float
+  grade        String // A+ … F
+  feedback     String?
+  gradedById   String
+  gradedBy     User        @relation("GradeGrader", fields: [gradedById], references: [id], onDelete: Restrict)
+  gradedAt     DateTime    @default(now())
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  @@index([studentId, courseId])
+  @@index([courseId])
+  @@map("grades")
+}
+
+model Attendance {
+  id         String           @id @default(uuid())
+  studentId  String
+  student    User             @relation("AttendanceStudent", fields: [studentId], references: [id], onDelete: Cascade)
+  courseId   String
+  course     Course           @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  date       DateTime         @db.Date
+  status     AttendanceStatus
+  notes      String?
+  markedById String
+  markedBy   User             @relation("AttendanceMarker", fields: [markedById], references: [id], onDelete: Restrict)
+  createdAt  DateTime         @default(now())
+  updatedAt  DateTime         @updatedAt
+
+  @@unique([studentId, courseId, date])
+  @@index([courseId, date])
+  @@map("attendance")
+}
+
+// ─────────────────────────── Communication ───────────────────────────
+
+model Announcement {
+  id             String   @id @default(uuid())
+  title          String
+  message        String
+  type           String   @default("general") // general | academic | administrative | urgent
+  targetAudience String   @default("all") // all | students | parents | teachers
+  priority       String   @default("medium") // low | medium | high
+  isActive       Boolean  @default(true)
+  attachments    Json     @default("[]")
+  postedById     String
+  postedBy       User     @relation(fields: [postedById], references: [id], onDelete: Cascade)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([createdAt(sort: Desc)])
+  @@index([targetAudience, isActive])
+  @@map("announcements")
+}
+
+model Message {
+  id             String    @id @default(uuid())
+  /// Deterministic: the two user ids sorted and joined with "_"
+  conversationId String
+  senderId       String
+  sender         User      @relation("MessageSender", fields: [senderId], references: [id], onDelete: Cascade)
+  receiverId     String
+  receiver       User      @relation("MessageReceiver", fields: [receiverId], references: [id], onDelete: Cascade)
+  content        String
+  messageType    String    @default("text") // text | file | image
+  fileUrl        String?
+  fileName       String?
+  isRead         Boolean   @default(false)
+  readAt         DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@index([conversationId, createdAt(sort: Desc)])
+  @@index([receiverId, isRead])
+  @@map("messages")
+}
+
+model Notification {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title     String
+  message   String
+  type      String   @default("info") // info | success | warning | error | announcement
+  isRead    Boolean  @default(false)
+  link      String   @default("")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, createdAt(sort: Desc)])
+  @@map("notifications")
+}
