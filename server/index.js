@@ -1,13 +1,17 @@
+const path = require('path');
+const dotenv = require('dotenv');
+
+// Load env vars before importing modules that read process.env
+dotenv.config({ path: path.resolve(__dirname, '..', '.env') });
+
 const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
 const cors = require('cors');
-const dotenv = require('dotenv');
-const connectDB = require('./config/db');
+const { connectDB } = require('./config/db');
 const setupSocketIO = require('./utils/socketManager');
-
-// Load env vars
-dotenv.config({ path: '../.env' });
+const { legacyIdSerializer, notFound, errorHandler } = require('./middleware/http');
+const { UPLOAD_ROOT } = require('./middleware/upload');
 
 // Connect to database
 connectDB();
@@ -37,6 +41,7 @@ app.use(cors({
 }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+app.use(legacyIdSerializer);
 
 // Routes
 app.use('/api/auth', require('./routes/auth'));
@@ -53,18 +58,16 @@ app.use('/api/parent', require('./routes/parent'));
 app.use('/api/subjects', require('./routes/subjects'));
 
 // Serve static files from uploads directory
-app.use('/uploads', express.static('uploads'));
+app.use('/uploads', express.static(UPLOAD_ROOT));
 
 // Health check
 app.get('/api/health', (req, res) => {
   res.json({ status: 'OK', message: 'Server is running' });
 });
 
-// Error handler
-app.use((err, req, res, next) => {
-  console.error(err.stack);
-  res.status(500).json({ message: 'Something went wrong!', error: err.message });
-});
+// 404 & Error handlers
+app.use(notFound);
+app.use(errorHandler);
 
 const PORT = process.env.PORT || 5000;
 

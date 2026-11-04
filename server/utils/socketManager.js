@@ -1,24 +1,28 @@
 const jwt = require('jsonwebtoken');
-const User = require('../models/User');
+const { prisma } = require('../config/db');
+const { userPublic } = require('./selects');
 
 const setupSocketIO = (io) => {
   // Socket.IO authentication middleware
   io.use(async (socket, next) => {
     try {
       const token = socket.handshake.auth.token;
-      
+
       if (!token) {
         return next(new Error('Authentication error'));
       }
 
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
-      const user = await User.findById(decoded.id).select('-password');
+      const user = await prisma.user.findUnique({
+        where: { id: decoded.id },
+        select: userPublic
+      });
 
-      if (!user) {
+      if (!user || !user.isActive) {
         return next(new Error('User not found'));
       }
 
-      socket.userId = user._id.toString();
+      socket.userId = user.id;
       socket.userRole = user.role;
       next();
     } catch (error) {

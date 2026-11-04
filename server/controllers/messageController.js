@@ -1,242 +1,221 @@
-const Message = require('../models/Message');
-const User = require('../models/User');
+const { prisma } = require('../config/db');
+const { userWithRole } = require('../utils/selects');
+const { asyncHandler, getPagination } = require('../utils/helpers');
+
+const buildConversationId = (userA, userB) => [String(userA), String(userB)].sort().join('_');
+
+const messageInclude = {
+  sender: { select: userWithRole },
+  receiver: { select: userWithRole }
+};
 
 // @desc    Send message
 // @route   POST /api/messages
 // @access  Private
-const sendMessage = async (req, res) => {
-  try {
-    const { receiverId, content, conversationId } = req.body;
+const sendMessage = asyncHandler(async (req, res) => {
+  const { receiverId, content, conversationId, messageType, fileUrl, fileName } = req.body;
 
-    // Verify receiver exists
-    const receiver = await User.findById(receiverId);
-    if (!receiver) {
-      return res.status(404).json({ message: 'Receiver not found' });
-    }
+  if (!receiverId || !content) {
+    return res.status(400).json({ message: 'receiverId and content are required' });
+  }
 
-    // Check if conversation exists or create new one
-    let conversation = conversationId
-      ? await Message.findOne({ conversationId })
-      : null;
+  const receiver = await prisma.user.findUnique({ where: { id: receiverId } });
+  if (!receiver) {
+    return res.status(404).json({ message: 'Receiver not found' });
+  }
 
-    if (!conversation) {
-      // Create new conversation
-      const newConversationId = `${req.user._id}_${receiverId}_${Date.now()}`;
-      conversation = await Message.create({
-        sender: req.user._id,
-        receiver: receiverId,
-        content,
-        conversationId: newConversationId,
-        isRead: false
-      });
-    } else {
-      // Add message to existing conversation
-      conversation.messages.push({
-        sender: req.user._id,
-        content,
-        timestamp: new Date(),
-        isRead: false
-      });
-      await conversation.save();
-    }
+  const convId = conversationId || buildConversationId(req.user.id, receiverId);
 
-    // Emit real-time message
-    const io = req.app.get('io');
+  const created = await prisma.message.create({
+    data: {
+      conversationId: convId,
+      senderId: req.user.id,
+      receiverId,
+      content,
+      ...(messageType ? { messageType } : {}),
+      ...(fileUrl ? { fileUrl } : {}),
+      ...(fileName ? { fileName } : {})
+    },
+    include: messageInclude
+  });
+
+  // Emit real-time message
+  const io = req.app.get('io');
+  if (io) {
     io.to(receiverId).emit('new_message', {
-      conversationId: conversation.conversationId,
+      conversationId: convId,
       message: {
-        sender: req.user._id,
-        content,
-        timestamp: new Date(),
+        id: created.id,
+        sender: req.user.id,
+        senderId: req.user.id,
+        content: created.content,
+        timestamp: created.createdAt,
+        createdAt: created.createdAt,
         isRead: false
       },
       sender: {
-        _id: req.user._id,
+        id: req.user.id,
+        _id: req.user.id,
         firstName: req.user.firstName,
         lastName: req.user.lastName
       }
     });
-
-    res.status(201).json({
-      message: 'Message sent successfully',
-      conversationId: conversation.conversationId
-    });
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: 'Server error', error: error.message });
   }
-};
+
+  res.status(201).json({
+    message: 'Message sent successfully',
+    conversationId: convId,
+    data: created
+  });
+});
 
 // @desc    Get conversations
 // @route   GET /api/messages/conversations
 // @access  Private
-const getConversations = async (req, res) => {
-  try {
-    const conversations = await Message.find({
-      $or: [
-        { sender: req.user._id },
-        { receiver: req.user._id }
-      ]
-    })
-    .populate('sender', 'firstName lastName email role')
-    .populate('receiver', 'firstName lastName email role')
-    .sort({ updatedAt: -1 });
+const getConversations = asyncHandler(async (req, res) => {
+  const messages = await prisma.message.findMany({
+    where: {
+      OR: [{ senderId: req.user.id }, { receiverId: req.user.id }]
+    },
+    include: messageInclude,
+    orderBy: { createdAt: 'desc' }
+  });
 
-    // Group by conversationId and get latest message
-    const conversationMap = new Map();
+  const conversationMap = new Map();
 
-    conversations.forEach(conv => {
-      const otherUser = conv.sender._id.toString() === req.user._id.toString()
-        ? conv.receiver
-        : conv.sender;
+  for (const msg of messages) {
+    const key = msg.conversationId;
+    const otherUser = msg.senderId === req.user.id ? msg.receiver : msg.sender;
 
-      const key = conv.conversationId;
+    if (!conversationMap.has(key)) {
+      conversationMap.set(key, {
+        conversationId: key,
+        otherUser,
+        lastMessage: {
+          id: msg.id,
+          sender: msg.senderId,
+          content: msg.content,
+          timestamp: msg.createdAt,
+          isRead: msg.isRead
+        },
+        unreadCount: 0,
+        updatedAt: msg.createdAt
+      });
+    }
 
-      if (!conversationMap.has(key)) {
-        conversationMap.set(key, {
-          conversationId: key,
-          otherUser,
-          lastMessage: conv.messages.length > 0
-            ? conv.messages[conv.messages.length - 1]
-            : { content: conv.content, timestamp: conv.createdAt },
-          unreadCount: conv.messages.filter(msg =>
-            msg.sender.toString() !== req.user._id.toString() && !msg.isRead
-          ).length,
-          updatedAt: conv.updatedAt
-        });
-      }
-    });
-
-    const result = Array.from(conversationMap.values())
-      .sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
-
-    res.json(result);
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: 'Server error', error: error.message });
+    if (msg.receiverId === req.user.id && !msg.isRead) {
+      conversationMap.get(key).unreadCount += 1;
+    }
   }
-};
+
+  res.json(Array.from(conversationMap.values()));
+});
 
 // @desc    Get messages in a conversation
 // @route   GET /api/messages/:conversationId
 // @access  Private
-const getConversationMessages = async (req, res) => {
-  try {
-    const { conversationId } = req.params;
-    const { page = 1, limit = 50 } = req.query;
+const getConversationMessages = asyncHandler(async (req, res) => {
+  const { conversationId } = req.params;
+  const pageInfo = getPagination(req.query, 50);
 
-    const conversation = await Message.findOne({ conversationId })
-      .populate('sender', 'firstName lastName email role')
-      .populate('receiver', 'firstName lastName email role')
-      .populate('messages.sender', 'firstName lastName role');
+  const firstMsg = await prisma.message.findFirst({
+    where: { conversationId },
+    include: messageInclude
+  });
 
-    if (!conversation) {
-      return res.status(404).json({ message: 'Conversation not found' });
-    }
-
-    // Check if user is part of this conversation
-    if (conversation.sender._id.toString() !== req.user._id.toString() &&
-        conversation.receiver._id.toString() !== req.user._id.toString()) {
-      return res.status(403).json({ message: 'Not authorized to view this conversation' });
-    }
-
-    // Mark messages as read
-    conversation.messages.forEach(msg => {
-      if (msg.sender.toString() !== req.user._id.toString() && !msg.isRead) {
-        msg.isRead = true;
-      }
-    });
-    await conversation.save();
-
-    // Get paginated messages
-    const messages = conversation.messages
-      .sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp))
-      .slice((page - 1) * limit, page * limit);
-
-    res.json({
-      conversation: {
-        conversationId,
-        otherUser: conversation.sender._id.toString() === req.user._id.toString()
-          ? conversation.receiver
-          : conversation.sender
-      },
-      messages,
-      pagination: {
-        page: parseInt(page),
-        limit: parseInt(limit),
-        total: conversation.messages.length,
-        pages: Math.ceil(conversation.messages.length / limit)
-      }
-    });
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: 'Server error', error: error.message });
+  if (!firstMsg) {
+    return res.status(404).json({ message: 'Conversation not found' });
   }
-};
+
+  if (firstMsg.senderId !== req.user.id && firstMsg.receiverId !== req.user.id) {
+    return res.status(403).json({ message: 'Not authorized to view this conversation' });
+  }
+
+  // Mark unread messages directed to current user as read
+  await prisma.message.updateMany({
+    where: {
+      conversationId,
+      receiverId: req.user.id,
+      isRead: false
+    },
+    data: {
+      isRead: true,
+      readAt: new Date()
+    }
+  });
+
+  const [messages, total] = await Promise.all([
+    prisma.message.findMany({
+      where: { conversationId },
+      include: messageInclude,
+      orderBy: { createdAt: 'asc' },
+      skip: pageInfo.skip,
+      take: pageInfo.limit
+    }),
+    prisma.message.count({ where: { conversationId } })
+  ]);
+
+  const otherUser = firstMsg.senderId === req.user.id ? firstMsg.receiver : firstMsg.sender;
+
+  res.json({
+    conversation: {
+      conversationId,
+      otherUser
+    },
+    messages,
+    pagination: {
+      page: pageInfo.page,
+      limit: pageInfo.limit,
+      total,
+      pages: Math.ceil(total / pageInfo.limit)
+    }
+  });
+});
 
 // @desc    Mark messages as read
 // @route   PUT /api/messages/:conversationId/read
 // @access  Private
-const markAsRead = async (req, res) => {
-  try {
-    const { conversationId } = req.params;
+const markAsRead = asyncHandler(async (req, res) => {
+  const { conversationId } = req.params;
 
-    const conversation = await Message.findOne({ conversationId });
+  const firstMsg = await prisma.message.findFirst({ where: { conversationId } });
 
-    if (!conversation) {
-      return res.status(404).json({ message: 'Conversation not found' });
-    }
-
-    // Check if user is part of this conversation
-    if (conversation.sender._id.toString() !== req.user._id.toString() &&
-        conversation.receiver._id.toString() !== req.user._id.toString()) {
-      return res.status(403).json({ message: 'Not authorized to access this conversation' });
-    }
-
-    // Mark messages from other user as read
-    conversation.messages.forEach(msg => {
-      if (msg.sender.toString() !== req.user._id.toString() && !msg.isRead) {
-        msg.isRead = true;
-      }
-    });
-
-    await conversation.save();
-
-    res.json({ message: 'Messages marked as read' });
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: 'Server error', error: error.message });
+  if (!firstMsg) {
+    return res.status(404).json({ message: 'Conversation not found' });
   }
-};
+
+  if (firstMsg.senderId !== req.user.id && firstMsg.receiverId !== req.user.id) {
+    return res.status(403).json({ message: 'Not authorized to access this conversation' });
+  }
+
+  await prisma.message.updateMany({
+    where: {
+      conversationId,
+      receiverId: req.user.id,
+      isRead: false
+    },
+    data: {
+      isRead: true,
+      readAt: new Date()
+    }
+  });
+
+  res.json({ message: 'Messages marked as read' });
+});
 
 // @desc    Get unread message count
 // @route   GET /api/messages/unread-count
 // @access  Private
-const getUnreadCount = async (req, res) => {
-  try {
-    const conversations = await Message.find({
-      $or: [
-        { sender: req.user._id },
-        { receiver: req.user._id }
-      ]
-    });
+const getUnreadCount = asyncHandler(async (req, res) => {
+  const unreadCount = await prisma.message.count({
+    where: {
+      receiverId: req.user.id,
+      isRead: false
+    }
+  });
 
-    let unreadCount = 0;
-
-    conversations.forEach(conv => {
-      conv.messages.forEach(msg => {
-        if (msg.sender.toString() !== req.user._id.toString() && !msg.isRead) {
-          unreadCount++;
-        }
-      });
-    });
-
-    res.json({ unreadCount });
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: 'Server error', error: error.message });
-  }
-};
+  res.json({ unreadCount });
+});
 
 module.exports = {
   sendMessage,
