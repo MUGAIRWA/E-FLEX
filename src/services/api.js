@@ -1,8 +1,10 @@
 import axios from 'axios';
 
 // Create axios instance with base configuration
+const API_BASE_URL = (import.meta.env.VITE_API_URL || 'http://localhost:5000/api').replace(/\/+$/, '');
+
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:5000/api',
+  baseURL: API_BASE_URL,
   headers: {
     'Content-Type': 'application/json',
   },
@@ -34,7 +36,7 @@ api.interceptors.response.use(
       try {
         const refreshToken = localStorage.getItem('refreshToken');
         if (refreshToken) {
-          const response = await axios.post('/api/auth/refresh', { refreshToken });
+          const response = await axios.post(`${API_BASE_URL}/auth/refresh`, { refreshToken });
           const { accessToken } = response.data;
 
           localStorage.setItem('accessToken', accessToken);
@@ -59,7 +61,7 @@ export const authAPI = {
   login: (credentials) => api.post('/auth/login', credentials),
   register: (userData) => api.post('/auth/register', userData),
   logout: (refreshToken) => api.post('/auth/logout', { refreshToken }),
-  refreshToken: (refreshToken) => axios.post('/api/auth/refresh', { refreshToken }),
+  refreshToken: (refreshToken) => axios.post(`${API_BASE_URL}/auth/refresh`, { refreshToken }),
   getCurrentUser: () => api.get('/auth/me'),
   updateProfile: (userData) => api.put('/auth/me', userData),
 };

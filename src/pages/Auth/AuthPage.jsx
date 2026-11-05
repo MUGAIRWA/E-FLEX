@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext.tsx';
 import LoginFormStudent from '../../components/auth/LoginFormStudent';
@@ -22,8 +22,16 @@ const AuthPage = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [selectedRole, setSelectedRole] = useState(initialRole);
-  const { login, register } = useAuth();
+  const { login, register, logout } = useAuth();
   const navigate = useNavigate();
+
+  useEffect(() => {
+    const roleFromPath = location.pathname.split('/').pop();
+    if (VALID_ROLES.includes(roleFromPath)) {
+      setSelectedRole(roleFromPath);
+      setError('');
+    }
+  }, [location.pathname]);
 
   const handleLogin = async (formData) => {
     setLoading(true);
@@ -32,6 +40,16 @@ const AuthPage = () => {
     const result = await login(formData.email, formData.password);
 
     if (result.success) {
+      const actualRole = result.user?.role;
+      if (actualRole && actualRole !== selectedRole) {
+        await logout();
+        setError(
+          `This email is registered as a ${actualRole.toUpperCase()} account, not a ${selectedRole.toUpperCase()} account. Please sign in with a ${selectedRole} email or click "Create new account" below to register as a ${selectedRole}.`
+        );
+        setLoading(false);
+        return;
+      }
+
       // Redirect based on user role
       const roleRoutes = {
         admin: '/admin/dashboard',
@@ -39,7 +57,7 @@ const AuthPage = () => {
         student: '/student/dashboard',
         parent: '/parent/dashboard'
       };
-      navigate(roleRoutes[result.user?.role] || '/');
+      navigate(roleRoutes[actualRole] || '/');
     } else {
       setError(result.message);
     }
@@ -79,7 +97,13 @@ const AuthPage = () => {
 
       <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
         <div className="bg-white py-8 px-4 shadow sm:rounded-lg sm:px-10">
-          <RoleSelector selectedRole={selectedRole} onRoleChange={setSelectedRole} />
+          <RoleSelector
+            selectedRole={selectedRole}
+            onRoleChange={(role) => {
+              setSelectedRole(role);
+              setError('');
+            }}
+          />
           {error && (
             <div className="mb-4 p-4 rounded-md bg-red-50 border border-red-200">
               <p className="text-sm text-red-600">{error}</p>
