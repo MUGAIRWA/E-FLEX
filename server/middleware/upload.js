@@ -2,7 +2,9 @@ const fs = require('fs');
 const path = require('path');
 const multer = require('multer');
 
-const UPLOAD_ROOT = path.resolve(__dirname, '..', 'uploads');
+const UPLOAD_ROOT = process.env.VERCEL
+  ? path.join('/tmp', 'uploads')
+  : path.resolve(__dirname, '..', 'uploads');
 
 /**
  * Build a multer instance for a sub-folder of /uploads.

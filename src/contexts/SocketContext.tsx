@@ -77,8 +77,19 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   useEffect(() => {
     if (isAuthenticated && user) {
-      const socketUrl =
-        (import.meta as any).env?.VITE_SOCKET_URL || 'http://localhost:5000';
+      const envSocketUrl = (import.meta as any).env?.VITE_SOCKET_URL;
+      const isProd = Boolean((import.meta as any).env?.PROD);
+
+      // In production without an explicit persistent socket server (e.g. Vercel Serverless),
+      // poll notifications every 15s instead of trying to connect to localhost:5000.
+      if (isProd && !envSocketUrl) {
+        const interval = window.setInterval(() => {
+          refreshNotifications();
+        }, 15000);
+        return () => window.clearInterval(interval);
+      }
+
+      const socketUrl = envSocketUrl || 'http://localhost:5000';
       const newSocket = io(socketUrl, {
         auth: {
           token: localStorage.getItem('accessToken')
