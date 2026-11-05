@@ -19,10 +19,28 @@ connectDB();
 const app = express();
 const server = http.createServer(app);
 
+const allowedOrigins = (process.env.CLIENT_URL || 'http://localhost:5173')
+  .split(',')
+  .map((o) => o.trim().replace(/\/+$/, ''))
+  .filter(Boolean);
+
+const corsOrigin = (origin, callback) => {
+  if (!origin) return callback(null, true);
+  const normalized = origin.replace(/\/+$/, '');
+  if (
+    allowedOrigins.includes('*') ||
+    allowedOrigins.includes(normalized) ||
+    normalized.endsWith('.vercel.app')
+  ) {
+    return callback(null, true);
+  }
+  return callback(new Error(`Origin ${origin} not allowed by CORS`));
+};
+
 // Initialize Socket.IO
 const io = new Server(server, {
   cors: {
-    origin: process.env.CLIENT_URL || 'http://localhost:5173',
+    origin: corsOrigin,
     methods: ['GET', 'POST'],
     credentials: true
   }
@@ -36,7 +54,7 @@ app.set('io', io);
 
 // Middleware
 app.use(cors({
-  origin: process.env.CLIENT_URL || 'http://localhost:5173',
+  origin: corsOrigin,
   credentials: true
 }));
 app.use(express.json());
