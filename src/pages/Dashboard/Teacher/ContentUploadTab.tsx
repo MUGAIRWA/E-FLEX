@@ -777,7 +777,7 @@ export function ContentUploadTab() {
                 href={
                   previewItem.url.startsWith('http')
                     ? previewItem.url
-                    : `http://localhost:5000${previewItem.url}`
+                    : `${window.location.hostname === 'localhost' ? 'http://localhost:5000' : ''}${previewItem.url}`
                 }
                 target="_blank"
                 rel="noreferrer"

@@ -209,7 +209,7 @@ export function ModulesTab() {
                       href={
                         mat.url.startsWith('http')
                           ? mat.url
-                          : `http://localhost:5000${mat.url}`
+                          : `${window.location.hostname === 'localhost' ? 'http://localhost:5000' : ''}${mat.url}`
                       }
                       target="_blank"
                       rel="noreferrer"
