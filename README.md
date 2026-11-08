@@ -42,39 +42,44 @@ E-FLEX is a modern, interactive online learning platform designed to make educat
 
 ### Frontend (User Interface)
 - **React 18**: Modern JavaScript library for building user interfaces
-- **TypeScript**: Adds type safety to JavaScript
-- **Vite**: Fast build tool and development server
-- **Tailwind CSS**: Utility-first CSS framework for styling
+- **TypeScript & JSX**: Type-safe and component-driven UI development
+- **Vite 5**: Fast build tool and development server
+- **Tailwind CSS 3**: Utility-first CSS framework for styling
 - **Framer Motion**: Animation library for smooth interactions
-- **React Router**: Handles navigation between pages
-- **Socket.io Client**: Real-time communication for live updates
+- **Lucide React**: Clean, consistent icon library
+- **React Router v6**: Client-side routing and navigation
+- **Axios**: HTTP client with automatic JWT refresh interceptors
+- **Socket.io Client**: Real-time communication (with automatic polling fallback on serverless deployments)
 
 ### Backend (Server & Database)
-- **Node.js**: JavaScript runtime for server-side development
-- **Express.js**: Web framework for building APIs
-- **MongoDB**: NoSQL database for flexible data storage
-- **Mongoose**: Object modeling for MongoDB
-- **JWT (JSON Web Tokens)**: Secure authentication system
-- **Socket.io**: Real-time bidirectional communication
-- **Multer**: File upload handling
+- **Node.js & Express.js**: REST API server (runs standalone locally and as a Vercel Serverless Function in production)
+- **PostgreSQL**: Relational database for structured educational data
+- **Prisma ORM (v6)**: Type-safe database client, schema management (`schema.prisma`), and seeding
+- **JWT (JSON Web Tokens)**: Access & SHA-256 hashed refresh token authentication
+- **Socket.io**: Real-time bidirectional communication for notifications and messaging
+- **Multer 2**: Multipart file upload handling for assignments, course materials, and exams
 - **bcryptjs**: Password hashing for security
+
+### Deployment & Hosting
+- **Vercel**: Unified hosting for the Vite React SPA frontend and Express serverless API (`/api/*`)
+- **Prisma Postgres**: Managed pooled PostgreSQL database
 
 ## 🚀 Getting Started
 
 ### Prerequisites
-- Node.js (version 16 or higher)
-- npm or yarn package manager
-- MongoDB database (local or cloud instance)
+- Node.js (version 18 or higher)
+- npm package manager
+- PostgreSQL database (local instance or cloud provider such as Prisma Postgres / Neon / Supabase)
 
 ### Installation
 
 1. **Clone the repository**
    ```bash
-   git clone <repository-url>
-   cd e-flex
+   git clone https://github.com/MUGAIRWA/E-FLEX.git
+   cd E-FLEX
    ```
 
-2. **Install Frontend Dependencies**
+2. **Install Frontend & Root Dependencies**
    ```bash
    npm install
    ```
@@ -87,19 +92,36 @@ E-FLEX is a modern, interactive online learning platform designed to make educat
    ```
 
 4. **Environment Setup**
-   - Create a `.env` file in the root directory
-   - Add the following variables:
-     ```
-     VITE_API_URL=http://localhost:5000/api
-     MONGODB_URI=mongodb://localhost:27017/eflex
-     JWT_SECRET=your-super-secret-jwt-key
-     JWT_EXPIRE=30d
-     JWT_REFRESH_EXPIRE=7d
-     CLIENT_URL=http://localhost:5173
+   - Create a `.env` file in the root directory:
+     ```env
+     # Server Configuration
      PORT=5000
+     NODE_ENV=development
+
+     # Database Configuration (PostgreSQL / Prisma)
+     DATABASE_URL="postgresql://user:password@localhost:5432/eflex?schema=public"
+
+     # JWT Configuration
+     JWT_SECRET=your-super-secret-jwt-key
+     REFRESH_TOKEN_SECRET=your-super-secret-refresh-token-key
+     JWT_EXPIRES_IN=30d
+
+     # Frontend URL (for CORS)
+     CLIENT_URL=http://localhost:5173
+
+     # Socket.IO Configuration
+     SOCKET_PORT=5000
      ```
 
-5. **Start the Application**
+5. **Initialize & Seed the PostgreSQL Database**
+   ```bash
+   cd server
+   npm run db:push
+   npm run db:seed
+   cd ..
+   ```
+
+6. **Start the Application**
 
    **Terminal 1: Start Backend Server**
    ```bash
@@ -112,9 +134,14 @@ E-FLEX is a modern, interactive online learning platform designed to make educat
    npm run dev
    ```
 
-6. **Access the Application**
-   - Open your browser and go to `http://localhost:5173`
-   - Register as a student, teacher, parent, or admin to explore
+7. **Access the Application**
+   - Local development: `http://localhost:5173`
+   - Live production deployment: `https://e-flex-zeta.vercel.app`
+   - Default seeded accounts (password: `password123`):
+     - **Admin**: `admin@eflex.edu`
+     - **Teacher**: `teacher@eflex.edu`
+     - **Student**: `student@eflex.edu`
+     - **Parent**: `parent@eflex.edu`
 
 ## 📚 API Documentation
 
@@ -319,35 +346,42 @@ The application uses Socket.io for real-time communication:
 
 ### Project Structure
 ```
-e-flex/
-├── src/                    # Frontend source code
+E-FLEX/
+├── api/                    # Vercel Serverless Function entrypoint
+│   ├── index.js            # Exports the Express backend app for Vercel
+│   └── package.json        # CommonJS module boundary for /api
+├── src/                    # Frontend source code (React + Vite + Tailwind CSS)
 │   ├── components/         # Reusable UI components
-│   ├── pages/             # Page components
-│   ├── contexts/          # React contexts (Auth, Socket)
-│   ├── services/          # API services
-│   └── constants/         # App constants
-├── server/                # Backend source code
-│   ├── controllers/       # Route controllers
-│   ├── models/           # Database models
-│   ├── routes/           # API routes
-│   ├── middleware/       # Custom middleware
-│   ├── utils/            # Utility functions
-│   └── config/           # Configuration files
-├── uploads/              # File upload directory
-└── public/               # Static assets
+│   ├── pages/              # Role-based page views (Student, Teacher, Parent, Admin, Auth)
+│   ├── contexts/           # React contexts (AuthContext, SocketContext)
+│   ├── services/           # Axios API service modules (api.js)
+│   └── constants/          # Application constants
+├── server/                 # Backend source code (Express + Prisma)
+│   ├── prisma/             # Prisma PostgreSQL schema (schema.prisma) & seed script (seed.js)
+│   ├── controllers/        # Route controllers
+│   ├── routes/             # Express API route definitions
+│   ├── middleware/         # Auth, HTTP serializer, error handling, and Multer uploads
+│   ├── utils/              # Socket.IO manager, notifications, and helpers
+│   └── config/             # Prisma client & database connection config
+├── vercel.json             # Vercel routing & serverless function bundling config
+└── package.json            # Frontend dependencies and Vercel build scripts
 ```
 
 ### Available Scripts
 
-**Frontend:**
-- `npm run dev` - Start development server
-- `npm run build` - Build for production
-- `npm run preview` - Preview production build
+**Root / Frontend (`/`):**
+- `npm run dev` - Start Vite frontend development server
+- `npm run build` - Build frontend for production
+- `npm run vercel-build` - Generate Prisma client and build Vite frontend for Vercel
+- `npm run preview` - Preview production build locally
 - `npm run lint` - Run ESLint
 
-**Backend:**
-- `npm run dev` - Start development server with nodemon
-- `npm start` - Start production server
+**Backend (`/server`):**
+- `npm run dev` - Start backend development server with `nodemon`
+- `npm start` - Start production Express server
+- `npm run db:push` - Push Prisma schema to PostgreSQL (`prisma db push`)
+- `npm run db:seed` - Seed PostgreSQL database with initial demo accounts (`node prisma/seed.js`)
+- `npm run db:studio` - Open Prisma Studio GUI to inspect/edit database records
 
 ## 🤝 Contributing
 
