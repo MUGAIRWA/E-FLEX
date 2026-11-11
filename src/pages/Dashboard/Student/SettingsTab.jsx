@@ -84,16 +84,26 @@ export function SettingsTab() {
   };
 
   return (
-    <div className="max-w-4xl mx-auto p-6">
-      <div className="bg-white rounded-lg shadow-md">
-        <div className="px-6 py-4 border-b border-gray-200">
-          <h2 className="text-2xl font-bold text-gray-900">Settings</h2>
-          <p className="text-gray-600">Manage your account settings and preferences</p>
-        </div>
+    <div className="max-w-4xl space-y-6">
+      <div>
+        <h1 className="font-poppins font-bold text-3xl mb-1 text-[#16211E]">
+          Account Settings
+        </h1>
+        <p className="text-[#5C6663]">
+          Manage your student profile, contact information, and notification preferences
+        </p>
+      </div>
 
-        <div className="p-6">
+      <div className="bg-white rounded-2xl border border-[#E5E0D5] shadow-sm">
+        <div className="p-6 sm:p-8">
           {message && (
-            <div className={`mb-6 p-4 rounded-md ${message.includes('success') ? 'bg-green-50 text-green-800' : 'bg-red-50 text-red-800'}`}>
+            <div
+              className={`mb-6 p-4 rounded-xl text-sm font-medium border ${
+                message.includes('success')
+                  ? 'bg-[#E9F5EE] border-[#BFE3CE] text-[#1E7A50]'
+                  : 'bg-[#F3E8DF] border-[#E8D5C4] text-[#C85A28]'
+              }`}
+            >
               {message}
             </div>
           )}
@@ -101,84 +111,102 @@ export function SettingsTab() {
           {/* Profile Information */}
           <form onSubmit={handleSubmit} className="space-y-6">
             <div>
-              <h3 className="text-lg font-medium text-gray-900 mb-4">Profile Information</h3>
+              <h3 className="font-poppins text-lg font-bold text-[#16211E] mb-4">
+                Profile Information
+              </h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">First Name</label>
+                  <label className="block text-sm font-medium text-[#3B4744] mb-1.5">
+                    First Name
+                  </label>
                   <input
                     type="text"
                     name="firstName"
                     value={settings.firstName}
                     onChange={handleInputChange}
-                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                    className="block w-full px-4 py-2.5 border border-[#E5E0D5] bg-[#F8F6F1] focus:bg-white rounded-xl text-[#16211E] focus:outline-none focus:border-[#134E4A] transition-colors"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">Last Name</label>
+                  <label className="block text-sm font-medium text-[#3B4744] mb-1.5">
+                    Last Name
+                  </label>
                   <input
                     type="text"
                     name="lastName"
                     value={settings.lastName}
                     onChange={handleInputChange}
-                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                    className="block w-full px-4 py-2.5 border border-[#E5E0D5] bg-[#F8F6F1] focus:bg-white rounded-xl text-[#16211E] focus:outline-none focus:border-[#134E4A] transition-colors"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">Email</label>
+                  <label className="block text-sm font-medium text-[#3B4744] mb-1.5">
+                    Email
+                  </label>
                   <input
                     type="email"
                     name="email"
                     value={settings.email}
                     onChange={handleInputChange}
-                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                    className="block w-full px-4 py-2.5 border border-[#E5E0D5] bg-[#F8F6F1] focus:bg-white rounded-xl text-[#16211E] focus:outline-none focus:border-[#134E4A] transition-colors"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">Phone</label>
+                  <label className="block text-sm font-medium text-[#3B4744] mb-1.5">
+                    Phone
+                  </label>
                   <input
                     type="tel"
                     name="phone"
                     value={settings.phone}
                     onChange={handleInputChange}
-                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                    className="block w-full px-4 py-2.5 border border-[#E5E0D5] bg-[#F8F6F1] focus:bg-white rounded-xl text-[#16211E] focus:outline-none focus:border-[#134E4A] transition-colors"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">Admission Number</label>
+                  <label className="block text-sm font-medium text-[#3B4744] mb-1.5">
+                    Admission Number
+                  </label>
                   <input
                     type="text"
                     name="admissionNumber"
                     value={settings.admissionNumber}
                     onChange={handleInputChange}
-                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                    className="block w-full px-4 py-2.5 border border-[#E5E0D5] bg-[#F8F6F1] focus:bg-white rounded-xl text-[#16211E] focus:outline-none focus:border-[#134E4A] transition-colors"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">Date of Birth</label>
+                  <label className="block text-sm font-medium text-[#3B4744] mb-1.5">
+                    Date of Birth
+                  </label>
                   <input
                     type="date"
                     name="dateOfBirth"
                     value={settings.dateOfBirth}
                     onChange={handleInputChange}
-                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                    className="block w-full px-4 py-2.5 border border-[#E5E0D5] bg-[#F8F6F1] focus:bg-white rounded-xl text-[#16211E] focus:outline-none focus:border-[#134E4A] transition-colors"
                   />
                 </div>
               </div>
               <div className="mt-4">
-                <label className="block text-sm font-medium text-gray-700">Address</label>
+                <label className="block text-sm font-medium text-[#3B4744] mb-1.5">
+                  Address
+                </label>
                 <textarea
                   name="address"
                   value={settings.address}
                   onChange={handleInputChange}
                   rows={3}
-                  className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                  className="block w-full px-4 py-2.5 border border-[#E5E0D5] bg-[#F8F6F1] focus:bg-white rounded-xl text-[#16211E] focus:outline-none focus:border-[#134E4A] transition-colors resize-none"
                 />
               </div>
             </div>
 
             {/* Notification Preferences */}
             <div>
-              <h3 className="text-lg font-medium text-gray-900 mb-4">Notification Preferences</h3>
+              <h3 className="font-poppins text-lg font-bold text-[#16211E] mb-4">
+                Notification Preferences
+              </h3>
               <div className="space-y-3">
                 <div className="flex items-center">
                   <input
@@ -186,9 +214,9 @@ export function SettingsTab() {
                     id="email-notifications"
                     checked={settings.notifications.email}
                     onChange={() => handleNotificationChange('email')}
-                    className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
+                    className="h-4 w-4 accent-[#134E4A] border-[#E5E0D5] rounded"
                   />
-                  <label htmlFor="email-notifications" className="ml-2 text-sm text-gray-700">
+                  <label htmlFor="email-notifications" className="ml-2.5 text-sm text-[#3B4744]">
                     Email notifications
                   </label>
                 </div>
@@ -198,9 +226,9 @@ export function SettingsTab() {
                     id="push-notifications"
                     checked={settings.notifications.push}
                     onChange={() => handleNotificationChange('push')}
-                    className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
+                    className="h-4 w-4 accent-[#134E4A] border-[#E5E0D5] rounded"
                   />
-                  <label htmlFor="push-notifications" className="ml-2 text-sm text-gray-700">
+                  <label htmlFor="push-notifications" className="ml-2.5 text-sm text-[#3B4744]">
                     Push notifications
                   </label>
                 </div>
@@ -210,9 +238,9 @@ export function SettingsTab() {
                     id="sms-notifications"
                     checked={settings.notifications.sms}
                     onChange={() => handleNotificationChange('sms')}
-                    className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
+                    className="h-4 w-4 accent-[#134E4A] border-[#E5E0D5] rounded"
                   />
-                  <label htmlFor="sms-notifications" className="ml-2 text-sm text-gray-700">
+                  <label htmlFor="sms-notifications" className="ml-2.5 text-sm text-[#3B4744]">
                     SMS notifications
                   </label>
                 </div>
@@ -223,7 +251,7 @@ export function SettingsTab() {
               <button
                 type="submit"
                 disabled={loading}
-                className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
+                className="px-6 py-2.5 bg-[#134E4A] text-white font-semibold text-sm rounded-xl hover:bg-[#0E3B38] transition-colors disabled:opacity-50 shadow-sm"
               >
                 {loading ? 'Saving...' : 'Save Changes'}
               </button>
@@ -231,34 +259,42 @@ export function SettingsTab() {
           </form>
 
           {/* Change Password Section */}
-          <div className="mt-8 pt-6 border-t border-gray-200">
-            <h3 className="text-lg font-medium text-gray-900 mb-4">Change Password</h3>
+          <div className="mt-8 pt-6 border-t border-[#E5E0D5]">
+            <h3 className="font-poppins text-lg font-bold text-[#16211E] mb-4">
+              Change Password
+            </h3>
             <form onSubmit={handlePasswordChange} className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700">Current Password</label>
+                <label className="block text-sm font-medium text-[#3B4744] mb-1.5">
+                  Current Password
+                </label>
                 <input
                   type="password"
-                  className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                  className="block w-full px-4 py-2.5 border border-[#E5E0D5] bg-[#F8F6F1] focus:bg-white rounded-xl text-[#16211E] focus:outline-none focus:border-[#134E4A] transition-colors"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700">New Password</label>
+                <label className="block text-sm font-medium text-[#3B4744] mb-1.5">
+                  New Password
+                </label>
                 <input
                   type="password"
-                  className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                  className="block w-full px-4 py-2.5 border border-[#E5E0D5] bg-[#F8F6F1] focus:bg-white rounded-xl text-[#16211E] focus:outline-none focus:border-[#134E4A] transition-colors"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700">Confirm New Password</label>
+                <label className="block text-sm font-medium text-[#3B4744] mb-1.5">
+                  Confirm New Password
+                </label>
                 <input
                   type="password"
-                  className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                  className="block w-full px-4 py-2.5 border border-[#E5E0D5] bg-[#F8F6F1] focus:bg-white rounded-xl text-[#16211E] focus:outline-none focus:border-[#134E4A] transition-colors"
                 />
               </div>
               <div className="flex justify-end">
                 <button
                   type="submit"
-                  className="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500"
+                  className="px-5 py-2.5 bg-[#F4F1EA] border border-[#E5E0D5] text-[#16211E] font-semibold text-sm rounded-xl hover:bg-[#EFECE4] transition-colors"
                 >
                   Change Password
                 </button>
@@ -267,11 +303,13 @@ export function SettingsTab() {
           </div>
 
           {/* Logout Section */}
-          <div className="mt-8 pt-6 border-t border-gray-200">
-            <h3 className="text-lg font-medium text-gray-900 mb-4">Account Actions</h3>
+          <div className="mt-8 pt-6 border-t border-[#E5E0D5]">
+            <h3 className="font-poppins text-lg font-bold text-[#16211E] mb-4">
+              Account Actions
+            </h3>
             <button
               onClick={logout}
-              className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+              className="px-5 py-2.5 bg-[#C85A28] text-white font-semibold text-sm rounded-xl hover:bg-[#AE4B1E] transition-colors shadow-sm"
             >
               Logout
             </button>

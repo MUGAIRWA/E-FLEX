@@ -111,11 +111,11 @@ export function ModulesTab() {
   const getStatusIcon = (status: string) => {
     switch (status) {
       case 'completed':
-        return <CheckCircleIcon className="w-6 h-6 text-success" />;
+        return <CheckCircleIcon className="w-6 h-6 text-[#1E7A50]" />;
       case 'current':
-        return <PlayCircleIcon className="w-6 h-6 text-primary" />;
+        return <PlayCircleIcon className="w-6 h-6 text-[#C85A28]" />;
       case 'locked':
-        return <LockIcon className="w-6 h-6 text-gray-400" />;
+        return <LockIcon className="w-6 h-6 text-[#8A9490]" />;
       default:
         return null;
     }
@@ -124,46 +124,46 @@ export function ModulesTab() {
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'completed':
-        return 'from-success to-green-400';
+        return 'bg-[#1E7A50]';
       case 'current':
-        return 'from-primary to-blue-400';
+        return 'bg-[#134E4A]';
       case 'locked':
-        return 'from-gray-400 to-gray-500';
+        return 'bg-[#8A9490]';
       default:
-        return 'from-gray-400 to-gray-500';
+        return 'bg-[#8A9490]';
     }
   };
 
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="font-poppins font-bold text-3xl mb-2 text-gray-800">
+        <h1 className="font-poppins font-bold text-3xl mb-2 text-[#16211E]">
           Weekly Modules & Teacher Resources
         </h1>
-        <p className="text-gray-600">
+        <p className="text-[#5C6663]">
           Access notes and videos uploaded by your teachers or request help on any topic
         </p>
       </div>
 
       {helpToast && (
-        <div className="p-4 rounded-xl bg-green-50 border border-green-200 text-green-700 text-sm font-medium flex items-center space-x-2">
+        <div className="p-4 rounded-xl bg-[#E9F5EE] border border-[#BFE3CE] text-[#1E7A50] text-sm font-medium flex items-center space-x-2">
           <CheckCircleIcon className="w-5 h-5" />
           <span>{helpToast}</span>
         </div>
       )}
 
       {/* Subject Selector */}
-      <div className="flex flex-wrap gap-3">
+      <div className="flex flex-wrap gap-2.5">
         {subjects.slice(0, 8).map((subject: string) => (
           <motion.button
             key={subject}
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
             onClick={() => setSelectedSubject(subject)}
-            className={`px-6 py-3 rounded-full font-semibold transition-all ${
+            className={`px-5 py-2.5 rounded-xl font-semibold text-sm transition-all ${
               selectedSubject === subject
-                ? 'bg-gradient-to-r from-primary to-accent text-white shadow-lg'
-                : 'bg-white text-gray-700 border-2 border-gray-200 hover:border-primary'
+                ? 'bg-[#134E4A] text-white shadow-sm'
+                : 'bg-white text-[#3B4744] border border-[#E5E0D5] hover:border-[#134E4A] hover:bg-[#F4F1EA]'
             }`}
           >
             {subject}
@@ -174,14 +174,14 @@ export function ModulesTab() {
       {/* Teacher Uploaded Notes & Videos for this Subject */}
       {subjectMaterials.length > 0 && (
         <div className="space-y-4">
-          <h2 className="font-poppins font-bold text-xl text-gray-800">
+          <h2 className="font-poppins font-bold text-xl text-[#16211E]">
             Teacher Notes & Videos ({selectedSubject})
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {subjectMaterials.map((mat) => (
               <Card key={mat.id} className="flex flex-col justify-between space-y-4">
                 <div className="flex items-start space-x-3">
-                  <div className="p-3 rounded-xl bg-primary/10 text-primary">
+                  <div className="p-3 rounded-xl bg-[#E8F1EF] text-[#134E4A]">
                     {mat.type === 'video' ? (
                       <VideoIcon className="w-6 h-6" />
                     ) : (
@@ -189,21 +189,21 @@ export function ModulesTab() {
                     )}
                   </div>
                   <div className="flex-1">
-                    <h3 className="font-bold text-gray-900">{mat.title}</h3>
-                    <p className="text-xs text-gray-500">
+                    <h3 className="font-bold text-[#16211E]">{mat.title}</h3>
+                    <p className="text-xs text-[#5C6663]">
                       {mat.teacherName ? `By ${mat.teacherName} • ` : ''}
                       {mat.uploadedAt
                         ? new Date(mat.uploadedAt).toLocaleDateString()
                         : ''}
                     </p>
                     {mat.description && (
-                      <p className="text-sm text-gray-700 mt-2 whitespace-pre-wrap">
+                      <p className="text-sm text-[#3B4744] mt-2 whitespace-pre-wrap">
                         {mat.description}
                       </p>
                     )}
                   </div>
                 </div>
-                <div className="flex items-center justify-between pt-2 border-t border-gray-100">
+                <div className="flex items-center justify-between pt-3 border-t border-[#E5E0D5]">
                   {mat.url ? (
                     <a
                       href={
@@ -213,13 +213,13 @@ export function ModulesTab() {
                       }
                       target="_blank"
                       rel="noreferrer"
-                      className="inline-flex items-center space-x-1.5 text-sm font-semibold text-primary hover:underline"
+                      className="inline-flex items-center space-x-1.5 text-sm font-semibold text-[#134E4A] hover:underline"
                     >
                       <ExternalLinkIcon className="w-4 h-4" />
                       <span>Open {mat.type === 'video' ? 'Video' : 'Notes'}</span>
                     </a>
                   ) : (
-                    <span className="text-xs text-gray-400">Study Notes</span>
+                    <span className="text-xs text-[#8A9490]">Study Notes</span>
                   )}
 
                   <Button
@@ -248,19 +248,19 @@ export function ModulesTab() {
             animate={{ opacity: 1, x: 0 }}
             transition={{ delay: index * 0.1 }}
           >
-            <Card className={module.status === 'locked' ? 'opacity-60' : ''}>
+            <Card className={module.status === 'locked' ? 'opacity-65' : ''}>
               <div className="flex items-start justify-between">
                 <div className="flex items-start space-x-4 flex-1">
                   <div
-                    className={`w-16 h-16 rounded-xl bg-gradient-to-br ${getStatusColor(
+                    className={`w-16 h-16 rounded-xl ${getStatusColor(
                       module.status
-                    )} flex items-center justify-center text-white flex-shrink-0`}
+                    )} flex items-center justify-center text-white flex-shrink-0 shadow-sm`}
                   >
                     <span className="font-bold text-xl">W{module.week}</span>
                   </div>
                   <div className="flex-1">
                     <div className="flex items-center space-x-3 mb-2">
-                      <h3 className="font-poppins font-bold text-xl text-gray-800">
+                      <h3 className="font-poppins font-bold text-xl text-[#16211E]">
                         {module.title}
                       </h3>
                       {getStatusIcon(module.status)}
@@ -269,7 +269,7 @@ export function ModulesTab() {
                       {module.topics.map((topic, idx) => (
                         <span
                           key={idx}
-                          className="text-xs bg-gray-100 text-gray-600 px-3 py-1 rounded-full"
+                          className="text-xs bg-[#F4F1EA] border border-[#E5E0D5] text-[#3B4744] font-medium px-3 py-1 rounded-full"
                         >
                           {topic}
                         </span>
@@ -277,20 +277,20 @@ export function ModulesTab() {
                     </div>
                     {module.status === 'completed' && module.quizScore && (
                       <div className="flex items-center space-x-2 text-sm">
-                        <span className="text-gray-600">Quiz Score:</span>
-                        <span className="font-bold text-success">
+                        <span className="text-[#5C6663]">Quiz Score:</span>
+                        <span className="font-bold text-[#1E7A50]">
                           {module.quizScore}%
                         </span>
                       </div>
                     )}
                     {module.status === 'current' && (
-                      <div className="flex items-center space-x-2 text-sm text-primary">
+                      <div className="flex items-center space-x-2 text-sm text-[#C85A28]">
                         <ClockIcon className="w-4 h-4" />
-                        <span className="font-medium">In Progress</span>
+                        <span className="font-semibold">In Progress</span>
                       </div>
                     )}
                     {module.status === 'locked' && (
-                      <p className="text-sm text-gray-500">
+                      <p className="text-sm text-[#5C6663]">
                         Complete Week {module.week - 1} quiz to unlock
                       </p>
                     )}
@@ -346,37 +346,37 @@ export function ModulesTab() {
       {/* Quick Help Modal */}
       {helpTarget && (
         <div
-          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+          className="fixed inset-0 bg-[#16211E]/50 flex items-center justify-center z-50 p-4"
           onClick={() => setHelpTarget(null)}
         >
           <div
-            className="bg-white rounded-2xl max-w-md w-full p-6 space-y-4 shadow-2xl"
+            className="bg-white rounded-2xl border border-[#E5E0D5] max-w-md w-full p-6 space-y-4 shadow-2xl"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between">
-              <h3 className="text-lg font-bold text-gray-900">
+              <h3 className="text-lg font-bold text-[#16211E]">
                 Ask Teacher for Help
               </h3>
               <button
                 onClick={() => setHelpTarget(null)}
-                className="text-gray-400 hover:text-gray-600 text-sm"
+                className="text-[#5C6663] hover:text-[#16211E] text-sm font-medium"
               >
                 Cancel
               </button>
             </div>
-            <p className="text-xs text-gray-600">
-              Subject: <span className="font-semibold">{helpTarget.subject}</span> • Topic:{' '}
-              <span className="font-semibold">{helpTarget.topic}</span>
+            <p className="text-xs text-[#5C6663]">
+              Subject: <span className="font-semibold text-[#16211E]">{helpTarget.subject}</span> • Topic:{' '}
+              <span className="font-semibold text-[#16211E]">{helpTarget.topic}</span>
             </p>
             <form onSubmit={handleSendHelpRequest} className="space-y-4">
               <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">
+                <label className="block text-xs font-medium text-[#3B4744] mb-1">
                   Urgency
                 </label>
                 <select
                   value={helpUrgency}
                   onChange={(e) => setHelpUrgency(e.target.value as any)}
-                  className="w-full px-3 py-2 text-sm rounded-lg border border-gray-300 focus:border-primary focus:outline-none"
+                  className="w-full px-3 py-2 text-sm rounded-xl border border-[#E5E0D5] bg-[#F8F6F1] focus:bg-white focus:border-[#134E4A] focus:outline-none"
                 >
                   <option value="low">Low</option>
                   <option value="medium">Medium</option>
@@ -384,7 +384,7 @@ export function ModulesTab() {
                 </select>
               </div>
               <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">
+                <label className="block text-xs font-medium text-[#3B4744] mb-1">
                   What do you need help with in this topic? *
                 </label>
                 <textarea
@@ -392,7 +392,7 @@ export function ModulesTab() {
                   value={helpDetails}
                   onChange={(e) => setHelpDetails(e.target.value)}
                   placeholder="Describe what part of this topic you are struggling with..."
-                  className="w-full px-3 py-2 text-sm rounded-lg border border-gray-300 focus:border-primary focus:outline-none resize-none"
+                  className="w-full px-3 py-2 text-sm rounded-xl border border-[#E5E0D5] bg-[#F8F6F1] focus:bg-white focus:border-[#134E4A] focus:outline-none resize-none"
                   required
                 />
               </div>

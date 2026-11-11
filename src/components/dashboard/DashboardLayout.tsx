@@ -251,14 +251,14 @@ export function DashboardLayout({
               {/* Notification Bell + Dropdown */}
               <div className="relative" ref={notificationRef}>
                 <motion.button
-                  whileHover={{ scale: 1.1 }}
+                  whileHover={{ scale: 1.05 }}
                   onClick={() => setIsNotificationsOpen((prev) => !prev)}
-                  className="relative p-2 text-gray-700 hover:text-primary transition-colors rounded-full hover:bg-gray-100"
+                  className="relative p-2 text-[#3B4744] hover:text-[#134E4A] transition-colors rounded-xl hover:bg-[#EFECE4]"
                   aria-label="Notifications"
                 >
                   <BellIcon className="w-6 h-6" />
                   {unreadCount > 0 && (
-                    <span className="absolute top-0 right-0 bg-warning text-white text-xs font-semibold rounded-full min-w-[20px] h-5 px-1 flex items-center justify-center">
+                    <span className="absolute top-0 right-0 bg-[#C85A28] text-white text-xs font-semibold rounded-full min-w-[20px] h-5 px-1 flex items-center justify-center">
                       {unreadCount > 99 ? '99+' : unreadCount}
                     </span>
                   )}
@@ -271,15 +271,15 @@ export function DashboardLayout({
                       animate={{ opacity: 1, y: 0, scale: 1 }}
                       exit={{ opacity: 0, y: -10, scale: 0.95 }}
                       transition={{ duration: 0.15 }}
-                      className="absolute right-0 mt-2 w-80 sm:w-96 bg-white rounded-2xl shadow-2xl border border-gray-100 overflow-hidden z-50"
+                      className="absolute right-0 mt-2 w-80 sm:w-96 bg-white rounded-2xl shadow-xl border border-[#E5E0D5] overflow-hidden z-50"
                     >
-                      <div className="flex items-center justify-between px-4 py-3 bg-gray-50 border-b border-gray-100">
+                      <div className="flex items-center justify-between px-4 py-3 bg-[#F8F6F1] border-b border-[#E5E0D5]">
                         <div className="flex items-center space-x-2">
-                          <h3 className="font-semibold text-gray-800 text-sm">
+                          <h3 className="font-semibold text-[#16211E] text-sm">
                             Notifications
                           </h3>
                           {unreadCount > 0 && (
-                            <span className="bg-primary/10 text-primary text-xs font-medium px-2 py-0.5 rounded-full">
+                            <span className="bg-[#E8F1EF] text-[#134E4A] text-xs font-semibold px-2 py-0.5 rounded-full">
                               {unreadCount} new
                             </span>
                           )}
@@ -287,7 +287,7 @@ export function DashboardLayout({
                         {unreadCount > 0 && (
                           <button
                             onClick={markNotificationsAsRead}
-                            className="flex items-center space-x-1 text-xs text-primary hover:underline font-medium"
+                            className="flex items-center space-x-1 text-xs text-[#134E4A] hover:underline font-medium"
                           >
                             <CheckCheckIcon className="w-3.5 h-3.5" />
                             <span>Mark all read</span>
@@ -295,11 +295,11 @@ export function DashboardLayout({
                         )}
                       </div>
 
-                      <div className="max-h-80 overflow-y-auto divide-y divide-gray-100">
+                      <div className="max-h-80 overflow-y-auto divide-y divide-[#EFECE4]">
                         {notifications.length === 0 ? (
                           <div className="py-8 px-4 text-center">
-                            <BellIcon className="w-8 h-8 text-gray-300 mx-auto mb-2" />
-                            <p className="text-sm text-gray-500">
+                            <BellIcon className="w-8 h-8 text-[#8A9490] mx-auto mb-2" />
+                            <p className="text-sm text-[#5C6663]">
                               No notifications yet
                             </p>
                           </div>
@@ -309,36 +309,36 @@ export function DashboardLayout({
                             return (
                               <div
                                 key={notifId}
-                                className={`flex items-start justify-between p-3.5 hover:bg-gray-50 transition-colors cursor-pointer ${
-                                  !item.isRead ? 'bg-blue-50/40' : ''
+                                className={`flex items-start justify-between p-3.5 hover:bg-[#F8F6F1] transition-colors cursor-pointer ${
+                                  !item.isRead ? 'bg-[#E8F1EF]/50' : ''
                                 }`}
                                 onClick={() => handleNotificationClick(item)}
                               >
                                 <div className="flex items-start space-x-3 pr-2 min-w-0 flex-1">
                                   <span
                                     className={`w-2 h-2 mt-1.5 rounded-full flex-shrink-0 ${
-                                      !item.isRead ? 'bg-primary' : 'bg-gray-300'
+                                      !item.isRead ? 'bg-[#C85A28]' : 'bg-[#D5CFC2]'
                                     }`}
                                   />
                                   <div className="min-w-0 flex-1">
                                     {item.type === 'help_request' && (
-                                      <span className="inline-block text-[10px] font-bold uppercase tracking-wide bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full mb-1">
+                                      <span className="inline-block text-[10px] font-bold uppercase tracking-wide bg-[#F3E8DF] text-[#C85A28] px-2 py-0.5 rounded-full mb-1">
                                         Student Needs Help
                                       </span>
                                     )}
                                     <p
                                       className={`text-sm truncate ${
                                         !item.isRead
-                                          ? 'font-semibold text-gray-900'
-                                          : 'font-medium text-gray-700'
+                                          ? 'font-semibold text-[#16211E]'
+                                          : 'font-medium text-[#3B4744]'
                                       }`}
                                     >
                                       {item.title}
                                     </p>
-                                    <p className="text-xs text-gray-600 line-clamp-2 mt-0.5">
+                                    <p className="text-xs text-[#5C6663] line-clamp-2 mt-0.5">
                                       {item.message}
                                     </p>
-                                    <p className="text-[11px] text-gray-400 mt-1">
+                                    <p className="text-[11px] text-[#8A9490] mt-1">
                                       {formatTimeAgo(item.createdAt)}
                                     </p>
                                   </div>
@@ -348,7 +348,7 @@ export function DashboardLayout({
                                     e.stopPropagation();
                                     deleteNotification(notifId);
                                   }}
-                                  className="text-gray-400 hover:text-red-500 p-1 rounded transition-colors"
+                                  className="text-[#8A9490] hover:text-[#C85A28] p-1 rounded transition-colors"
                                   title="Dismiss notification"
                                 >
                                   <Trash2Icon className="w-4 h-4" />
@@ -359,13 +359,13 @@ export function DashboardLayout({
                         )}
                       </div>
 
-                      <div className="px-4 py-2.5 bg-gray-50 border-t border-gray-100 text-center">
+                      <div className="px-4 py-2.5 bg-[#F8F6F1] border-t border-[#E5E0D5] text-center">
                         <button
                           onClick={() => {
                             onTabChange('announcements');
                             setIsNotificationsOpen(false);
                           }}
-                          className="text-xs font-medium text-primary hover:underline"
+                          className="text-xs font-semibold text-[#134E4A] hover:underline"
                         >
                           View all announcements
                         </button>
@@ -379,13 +379,13 @@ export function DashboardLayout({
                 <img
                   src={userInfo.avatar}
                   alt="Profile"
-                  className="w-10 h-10 rounded-full border-2 border-primary"
+                  className="w-10 h-10 rounded-full border-2 border-[#134E4A] bg-[#EFECE4]"
                 />
                 <div className="hidden md:block">
-                  <p className="font-semibold text-sm text-gray-800">
+                  <p className="font-semibold text-sm text-[#16211E]">
                     {userInfo.name}
                   </p>
-                  <p className="text-xs text-gray-500">{userInfo.role}</p>
+                  <p className="text-xs text-[#5C6663]">{userInfo.role}</p>
                 </div>
               </div>
             </div>
@@ -401,31 +401,31 @@ export function DashboardLayout({
               initial={{ x: -300, opacity: 0 }}
               animate={{ x: 0, opacity: 1 }}
               exit={{ x: -300, opacity: 0 }}
-              className="hidden md:block w-64 bg-white shadow-lg min-h-screen"
+              className="hidden md:block w-64 bg-white border-r border-[#E5E0D5] min-h-screen"
             >
-              <div className="p-6 space-y-2">
+              <div className="p-5 space-y-1.5">
                 {tabs.map((tab) => (
                   <motion.button
                     key={tab.id}
-                    whileHover={{ x: 5 }}
+                    whileHover={{ x: 4 }}
                     onClick={() => onTabChange(tab.id)}
                     className={`w-full flex items-center space-x-3 px-4 py-3 rounded-xl transition-all ${
                       activeTab === tab.id
-                        ? 'bg-gradient-to-r from-primary to-accent text-white shadow-lg'
-                        : 'text-gray-700 hover:bg-gray-100'
+                        ? 'bg-[#134E4A] text-white shadow-sm'
+                        : 'text-[#3B4744] hover:bg-[#F4F1EA] hover:text-[#16211E]'
                     }`}
                   >
                     {tab.icon}
-                    <span className="font-medium">{tab.label}</span>
+                    <span className="font-medium text-sm">{tab.label}</span>
                   </motion.button>
                 ))}
-                <div className="pt-6 mt-6 border-t border-gray-200 space-y-2">
+                <div className="pt-5 mt-5 border-t border-[#E5E0D5] space-y-1.5">
                   <button
                     onClick={handleLogout}
-                    className="w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-gray-700 hover:bg-gray-100 transition-all"
+                    className="w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-[#5C6663] hover:bg-[#F3E8DF] hover:text-[#C85A28] transition-all"
                   >
                     <LogOutIcon className="w-5 h-5" />
-                    <span className="font-medium">Logout</span>
+                    <span className="font-medium text-sm">Logout</span>
                   </button>
                 </div>
               </div>
@@ -440,21 +440,21 @@ export function DashboardLayout({
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="md:hidden fixed inset-0 bg-black/50 z-40"
+              className="md:hidden fixed inset-0 bg-[#16211E]/50 z-40"
               onClick={() => setIsMobileSidebarOpen(false)}
             >
               <motion.aside
                 initial={{ x: -300 }}
                 animate={{ x: 0 }}
                 exit={{ x: -300 }}
-                className="w-64 bg-white shadow-lg min-h-screen"
+                className="w-64 bg-white border-r border-[#E5E0D5] min-h-screen"
                 onClick={(e) => e.stopPropagation()}
               >
-                <div className="p-6 space-y-2">
+                <div className="p-5 space-y-1.5">
                   {tabs.map((tab) => (
                     <motion.button
                       key={tab.id}
-                      whileHover={{ x: 5 }}
+                      whileHover={{ x: 4 }}
                       onClick={() => {
                         onTabChange(tab.id);
                         setIsMobileSidebarOpen(false);
@@ -462,20 +462,20 @@ export function DashboardLayout({
                       className={`w-full flex items-center space-x-3 px-4 py-3 rounded-xl transition-all ${
                         activeTab === tab.id
                           ? 'bg-[#134E4A] text-white shadow-sm'
-                          : 'text-[#3B4744] hover:bg-[#EFECE4]'
+                          : 'text-[#3B4744] hover:bg-[#F4F1EA]'
                       }`}
                     >
                       {tab.icon}
-                      <span className="font-medium">{tab.label}</span>
+                      <span className="font-medium text-sm">{tab.label}</span>
                     </motion.button>
                   ))}
-                  <div className="pt-6 mt-6 border-t border-gray-200 space-y-2">
+                  <div className="pt-5 mt-5 border-t border-[#E5E0D5] space-y-1.5">
                     <button
                       onClick={handleLogout}
-                      className="w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-gray-700 hover:bg-gray-100 transition-all"
+                      className="w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-[#5C6663] hover:bg-[#F3E8DF] hover:text-[#C85A28] transition-all"
                     >
                       <LogOutIcon className="w-5 h-5" />
-                      <span className="font-medium">Logout</span>
+                      <span className="font-medium text-sm">Logout</span>
                     </button>
                   </div>
                 </div>

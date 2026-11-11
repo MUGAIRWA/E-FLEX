@@ -99,16 +99,20 @@ export function AnnouncementsTab() {
 
   const getTypeColor = (type: string) => {
     switch (type) {
-      case 'urgent': return 'border-red-500 bg-red-50';
-      case 'academic': return 'border-blue-500 bg-blue-50';
-      case 'administrative': return 'border-green-500 bg-green-50';
-      default: return 'border-gray-500 bg-gray-50';
+      case 'urgent':
+        return 'border-l-[#C85A28] bg-[#F3E8DF]/30';
+      case 'academic':
+        return 'border-l-[#134E4A] bg-[#E8F1EF]/30';
+      case 'administrative':
+        return 'border-l-[#1E7A50] bg-[#E9F5EE]/30';
+      default:
+        return 'border-l-[#8A9490] bg-white';
     }
   };
 
   const getPriorityIcon = (priority: string) => {
     if (priority === 'high') {
-      return <AlertCircleIcon className="w-4 h-4 text-red-500" />;
+      return <AlertCircleIcon className="w-4 h-4 text-[#C85A28]" />;
     }
     return null;
   };
@@ -132,15 +136,15 @@ export function AnnouncementsTab() {
     return (
       <div className="space-y-8">
         <div>
-          <h1 className="font-poppins font-bold text-3xl mb-2 text-gray-800">
+          <h1 className="font-poppins font-bold text-3xl mb-2 text-[#16211E]">
             Announcements
           </h1>
-          <p className="text-gray-600">
+          <p className="text-[#5C6663]">
             Stay updated with the latest news and announcements
           </p>
         </div>
         <div className="flex justify-center py-8">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#134E4A]"></div>
         </div>
       </div>
     );
@@ -150,10 +154,10 @@ export function AnnouncementsTab() {
     <div className="space-y-6">
       {/* Header */}
       <div>
-        <h1 className="font-poppins font-bold text-3xl mb-2 text-gray-800">
+        <h1 className="font-poppins font-bold text-3xl mb-2 text-[#16211E]">
           Announcements
         </h1>
-        <p className="text-gray-600">
+        <p className="text-[#5C6663]">
           Stay updated with the latest news and announcements
         </p>
       </div>
@@ -174,10 +178,10 @@ export function AnnouncementsTab() {
                 setFilter(option.key);
                 setPage(1);
               }}
-              className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+              className={`px-4 py-2 rounded-xl font-semibold text-sm transition-colors ${
                 filter === option.key
-                  ? 'bg-primary text-white'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  ? 'bg-[#134E4A] text-white shadow-sm'
+                  : 'bg-[#F4F1EA] text-[#3B4744] hover:bg-[#EFECE4]'
               }`}
             >
               {option.label}
@@ -188,8 +192,8 @@ export function AnnouncementsTab() {
 
       {/* Error Message */}
       {error && (
-        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-          <p className="text-red-600">{error}</p>
+        <div className="bg-[#F3E8DF] border border-[#E8D5C4] rounded-xl p-4">
+          <p className="text-[#C85A28] font-medium">{error}</p>
           <Button
             variant="outline"
             size="sm"
@@ -209,14 +213,14 @@ export function AnnouncementsTab() {
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="bg-white rounded-xl shadow-md p-6 flex items-center space-x-4"
+          className="bg-white rounded-2xl border border-[#E5E0D5] shadow-sm p-6 flex items-center space-x-4"
         >
-          <div className="bg-blue-100 p-3 rounded-full">
-            <BellIcon className="h-6 w-6 text-primary" />
+          <div className="bg-[#E8F1EF] p-3.5 rounded-xl">
+            <BellIcon className="h-6 w-6 text-[#134E4A]" />
           </div>
           <div>
-            <h3 className="font-medium text-gray-800">No announcements found</h3>
-            <p className="text-gray-600 text-sm">
+            <h3 className="font-semibold text-[#16211E]">No announcements found</h3>
+            <p className="text-[#5C6663] text-sm">
               Check back later for updates from your teachers
             </p>
           </div>
@@ -229,37 +233,37 @@ export function AnnouncementsTab() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: index * 0.1 }}
-              className={`bg-white rounded-xl shadow-md p-6 border-l-4 ${getTypeColor(announcement.type)}`}
+              className={`bg-white rounded-2xl border border-[#E5E0D5] shadow-sm p-6 border-l-4 ${getTypeColor(announcement.type)}`}
             >
               <div className="flex items-start justify-between mb-3">
                 <div className="flex items-center space-x-3">
-                  <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center">
-                    <UserIcon className="w-5 h-5 text-gray-600" />
+                  <div className="w-10 h-10 rounded-xl bg-[#134E4A] flex items-center justify-center">
+                    <UserIcon className="w-5 h-5 text-white" />
                   </div>
                   <div>
                     <div className="flex items-center space-x-2">
-                      <h3 className="font-semibold text-gray-800">{announcement.title}</h3>
+                      <h3 className="font-semibold text-[#16211E]">{announcement.title}</h3>
                       {getPriorityIcon(announcement.priority)}
                     </div>
-                    <p className="text-sm text-gray-600">
+                    <p className="text-sm text-[#5C6663]">
                       Posted by {announcement.postedBy.firstName} {announcement.postedBy.lastName} • {formatDate(announcement.createdAt)}
                     </p>
                   </div>
                 </div>
-                <span className={`text-xs px-2 py-1 rounded-full capitalize ${
-                  announcement.type === 'urgent' ? 'bg-red-100 text-red-700' :
-                  announcement.type === 'academic' ? 'bg-blue-100 text-blue-700' :
-                  announcement.type === 'administrative' ? 'bg-green-100 text-green-700' :
-                  'bg-gray-100 text-gray-700'
+                <span className={`text-xs font-semibold px-2.5 py-1 rounded-full capitalize ${
+                  announcement.type === 'urgent' ? 'bg-[#F3E8DF] text-[#C85A28]' :
+                  announcement.type === 'academic' ? 'bg-[#E8F1EF] text-[#134E4A]' :
+                  announcement.type === 'administrative' ? 'bg-[#E9F5EE] text-[#1E7A50]' :
+                  'bg-[#F4F1EA] text-[#3B4744]'
                 }`}>
                   {announcement.type}
                 </span>
               </div>
 
-              <p className="text-gray-700 mb-4">{announcement.message}</p>
+              <p className="text-[#3B4744] mb-4">{announcement.message}</p>
 
               <div className="flex items-center justify-between">
-                <span className="text-xs text-gray-500">
+                <span className="text-xs text-[#5C6663] font-medium">
                   Audience: {announcement.targetAudience}
                 </span>
                 <Button variant="outline" size="sm">

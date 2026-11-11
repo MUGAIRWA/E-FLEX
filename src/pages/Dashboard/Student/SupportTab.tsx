@@ -93,10 +93,10 @@ export function SupportTab() {
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="font-poppins font-bold text-3xl mb-2 text-gray-800">
+        <h1 className="font-poppins font-bold text-3xl mb-2 text-[#16211E]">
           Academic Help & Teacher Support
         </h1>
-        <p className="text-gray-600">
+        <p className="text-[#5C6663]">
           Struggling with a specific subject, topic, or assignment? Alert your teacher directly so they can help you.
         </p>
       </div>
@@ -104,28 +104,28 @@ export function SupportTab() {
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
         <Card>
           <div className="flex items-center space-x-4 mb-6">
-            <div className="bg-blue-100 p-3 rounded-full">
-              <HelpCircleIcon className="h-6 w-6 text-primary" />
+            <div className="bg-[#E8F1EF] p-3.5 rounded-xl">
+              <HelpCircleIcon className="h-6 w-6 text-[#134E4A]" />
             </div>
             <div>
-              <h3 className="font-poppins font-bold text-xl text-gray-800">
+              <h3 className="font-poppins font-bold text-xl text-[#16211E]">
                 Request Help in a Particular Area
               </h3>
-              <p className="text-gray-600 text-sm">
+              <p className="text-[#5C6663] text-sm">
                 Your teacher will receive an instant notification with the exact subject and topic you need help with
               </p>
             </div>
           </div>
 
           {successMsg && (
-            <div className="mb-4 p-4 rounded-xl bg-green-50 border border-green-200 text-green-700 text-sm flex items-center space-x-2">
+            <div className="mb-4 p-4 rounded-xl bg-[#E9F5EE] border border-[#BFE3CE] text-[#1E7A50] text-sm font-medium flex items-center space-x-2">
               <CheckCircleIcon className="w-5 h-5 flex-shrink-0" />
               <span>{successMsg}</span>
             </div>
           )}
 
           {errorMsg && (
-            <div className="mb-4 p-4 rounded-xl bg-red-50 border border-red-200 text-red-600 text-sm">
+            <div className="mb-4 p-4 rounded-xl bg-[#F3E8DF] border border-[#E8D5C4] text-[#C85A28] text-sm font-medium">
               {errorMsg}
             </div>
           )}
@@ -133,13 +133,13 @@ export function SupportTab() {
           <form onSubmit={handleSubmit} className="space-y-5">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-[#3B4744] mb-2">
                   Subject *
                 </label>
                 <select
                   value={subject}
                   onChange={(e) => setSubject(e.target.value)}
-                  className="w-full px-4 py-3 rounded-lg border-2 border-gray-200 focus:border-primary focus:outline-none transition-colors"
+                  className="w-full px-4 py-3 rounded-xl border border-[#E5E0D5] bg-[#F8F6F1] focus:bg-white focus:border-[#134E4A] focus:outline-none transition-colors text-[#16211E]"
                 >
                   {(SUBJECTS || ['Mathematics', 'English', 'Chemistry', 'Biology', 'Physics']).map(
                     (subj: string) => (
@@ -152,7 +152,7 @@ export function SupportTab() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-[#3B4744] mb-2">
                   Particular Topic / Area *
                 </label>
                 <input
@@ -160,19 +160,19 @@ export function SupportTab() {
                   value={topic}
                   onChange={(e) => setTopic(e.target.value)}
                   placeholder="e.g. Quadratic Equations, Mole Concept..."
-                  className="w-full px-4 py-3 rounded-lg border-2 border-gray-200 focus:border-primary focus:outline-none transition-colors"
+                  className="w-full px-4 py-3 rounded-xl border border-[#E5E0D5] bg-[#F8F6F1] focus:bg-white focus:border-[#134E4A] focus:outline-none transition-colors text-[#16211E]"
                   required
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-[#3B4744] mb-2">
                   How Urgent Is This?
                 </label>
                 <select
                   value={urgency}
                   onChange={(e) => setUrgency(e.target.value as any)}
-                  className="w-full px-4 py-3 rounded-lg border-2 border-gray-200 focus:border-primary focus:outline-none transition-colors"
+                  className="w-full px-4 py-3 rounded-xl border border-[#E5E0D5] bg-[#F8F6F1] focus:bg-white focus:border-[#134E4A] focus:outline-none transition-colors text-[#16211E]"
                 >
                   <option value="low">Low — General clarification</option>
                   <option value="medium">Medium — Stuck on practice/homework</option>
@@ -182,7 +182,7 @@ export function SupportTab() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-[#3B4744] mb-2">
                 What part are you finding difficult? *
               </label>
               <textarea
@@ -190,7 +190,7 @@ export function SupportTab() {
                 value={details}
                 onChange={(e) => setDetails(e.target.value)}
                 placeholder="Describe the concept, formula, or question you are stuck on..."
-                className="w-full px-4 py-3 rounded-lg border-2 border-gray-200 focus:border-primary focus:outline-none transition-colors resize-none"
+                className="w-full px-4 py-3 rounded-xl border border-[#E5E0D5] bg-[#F8F6F1] focus:bg-white focus:border-[#134E4A] focus:outline-none transition-colors resize-none text-[#16211E]"
                 required
               />
             </div>
@@ -211,16 +211,16 @@ export function SupportTab() {
       >
         <Card>
           <div className="flex items-center space-x-3 mb-4">
-            <MessageSquareIcon className="w-5 h-5 text-primary" />
-            <h3 className="font-poppins font-bold text-xl text-gray-800">
+            <MessageSquareIcon className="w-5 h-5 text-[#134E4A]" />
+            <h3 className="font-poppins font-bold text-xl text-[#16211E]">
               Your Help Requests & Teacher Guidance
             </h3>
           </div>
 
           {loadingHistory ? (
-            <p className="text-sm text-gray-500">Loading your help requests...</p>
+            <p className="text-sm text-[#5C6663]">Loading your help requests...</p>
           ) : helpRequests.length === 0 ? (
-            <p className="text-sm text-gray-500">
+            <p className="text-sm text-[#5C6663]">
               You haven&apos;t sent any help requests yet.
             </p>
           ) : (
@@ -228,40 +228,40 @@ export function SupportTab() {
               {helpRequests.map((item: any) => (
                 <div
                   key={item.id}
-                  className="p-4 rounded-xl border border-gray-200 bg-gray-50 space-y-3"
+                  className="p-4 rounded-xl border border-[#E5E0D5] bg-[#F8F6F1] space-y-3"
                 >
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <div className="flex items-center flex-wrap gap-2">
-                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-100 text-blue-800">
+                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-[#E8F1EF] text-[#134E4A]">
                         <BookOpenIcon className="w-3.5 h-3.5 mr-1" />
                         {item.subject}
                       </span>
-                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-purple-100 text-purple-800">
+                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-[#F3E8DF] text-[#C85A28]">
                         Topic: {item.topic}
                       </span>
                       {item.teacher && (
-                        <span className="text-xs text-gray-500">
+                        <span className="text-xs text-[#5C6663]">
                           Sent to {item.teacher.firstName} {item.teacher.lastName}
                         </span>
                       )}
                     </div>
-                    <span className="text-xs text-gray-400">
+                    <span className="text-xs text-[#8A9490]">
                       {item.createdAt
                         ? new Date(item.createdAt).toLocaleString()
                         : ''}
                     </span>
                   </div>
 
-                  <p className="text-sm text-gray-800">{item.details}</p>
+                  <p className="text-sm text-[#16211E]">{item.details}</p>
 
                   {item.replies && item.replies.length > 0 ? (
-                    <div className="pl-4 border-l-2 border-green-500 space-y-2 mt-2">
+                    <div className="pl-4 border-l-2 border-[#1E7A50] space-y-2 mt-2">
                       {item.replies.map((rep: any) => (
                         <div
                           key={rep.id}
-                          className="bg-green-50 p-3 rounded-lg text-sm text-gray-800"
+                          className="bg-[#E9F5EE] p-3 rounded-xl text-sm text-[#16211E]"
                         >
-                          <p className="text-xs font-semibold text-green-700 mb-1">
+                          <p className="text-xs font-semibold text-[#1E7A50] mb-1">
                             {rep.teacherName} replied:
                           </p>
                           <p>{rep.content}</p>
@@ -269,7 +269,7 @@ export function SupportTab() {
                       ))}
                     </div>
                   ) : (
-                    <p className="text-xs text-amber-600 font-medium">
+                    <p className="text-xs text-[#D97706] font-semibold">
                       Awaiting teacher response...
                     </p>
                   )}
