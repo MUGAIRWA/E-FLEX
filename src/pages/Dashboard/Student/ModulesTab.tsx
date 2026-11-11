@@ -1,16 +1,14 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import {
-  LockIcon,
   CheckCircleIcon,
-  PlayCircleIcon,
-  ClockIcon,
   HelpCircleIcon,
   FileTextIcon,
   VideoIcon,
   ClipboardListIcon,
   ExternalLinkIcon,
-  SendIcon
+  SendIcon,
+  BookOpenIcon
 } from 'lucide-react';
 import { Card } from '../../../components/ui/Card';
 import { Button } from '../../../components/ui/Button';
@@ -27,6 +25,7 @@ export function ModulesTab() {
   const subjects: string[] = SUBJECTS as string[];
   const [teacherMaterials, setTeacherMaterials] = useState<any[]>([]);
   const [teacherQuizzes, setTeacherQuizzes] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
   const [activeQuiz, setActiveQuiz] = useState<any | null>(null);
   const [quizAnswers, setQuizAnswers] = useState<Record<number, string>>({});
   const [submittingQuiz, setSubmittingQuiz] = useState(false);
@@ -47,6 +46,7 @@ export function ModulesTab() {
 
   const loadStreamResources = useCallback(async () => {
     try {
+      setLoading(true);
       const [matsRes, examsRes] = await Promise.allSettled([
         courseAPI.getMaterials(),
         examAPI.getExams({ limit: 50 })
@@ -59,6 +59,8 @@ export function ModulesTab() {
       }
     } catch (err) {
       console.error('Failed to load teacher resources:', err);
+    } finally {
+      setLoading(false);
     }
   }, []);
 
@@ -132,44 +134,6 @@ export function ModulesTab() {
     }
   };
 
-  const modules = [
-    {
-      week: 1,
-      title: 'Introduction to Algebra',
-      status: 'completed',
-      quizScore: 85,
-      topics: ['Variables and Expressions', 'Linear Equations', 'Practice Problems']
-    },
-    {
-      week: 2,
-      title: 'Quadratic Equations',
-      status: 'completed',
-      quizScore: 92,
-      topics: ['Standard Form', 'Factoring', 'Quadratic Formula']
-    },
-    {
-      week: 3,
-      title: 'Functions and Graphs',
-      status: 'current',
-      quizScore: null,
-      topics: ['Function Notation', 'Graphing Techniques', 'Domain and Range']
-    },
-    {
-      week: 4,
-      title: 'Polynomials',
-      status: 'locked',
-      quizScore: null,
-      topics: ['Polynomial Operations', 'Factoring Polynomials', 'Remainder Theorem']
-    },
-    {
-      week: 5,
-      title: 'Rational Expressions',
-      status: 'locked',
-      quizScore: null,
-      topics: ['Simplifying Rationals', 'Operations', 'Complex Fractions']
-    }
-  ];
-
   const subjectMaterials = teacherMaterials.filter(
     (m) =>
       selectedSubject === 'ALL' ||
@@ -189,38 +153,12 @@ export function ModulesTab() {
     (user as any)?.stream
   );
 
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case 'completed':
-        return <CheckCircleIcon className="w-6 h-6 text-[#1E7A50]" />;
-      case 'current':
-        return <PlayCircleIcon className="w-6 h-6 text-[#C85A28]" />;
-      case 'locked':
-        return <LockIcon className="w-6 h-6 text-[#8A9490]" />;
-      default:
-        return null;
-    }
-  };
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'completed':
-        return 'bg-[#1E7A50]';
-      case 'current':
-        return 'bg-[#134E4A]';
-      case 'locked':
-        return 'bg-[#8A9490]';
-      default:
-        return 'bg-[#8A9490]';
-    }
-  };
-
   return (
     <div className="space-y-8">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
           <h1 className="font-poppins font-bold text-3xl mb-1 text-[#16211E]">
-            Stream Notes, Quizzes & Weekly Modules
+            Stream Notes, Videos & Quizzes
           </h1>
           <p className="text-[#5C6663]">
             Access study notes, videos, and quizzes posted by your teachers for your class stream
@@ -272,12 +210,31 @@ export function ModulesTab() {
       </div>
 
       {/* Teacher Uploaded Notes & Videos for this Stream */}
-      {subjectMaterials.length > 0 && (
-        <div className="space-y-4">
-          <h2 className="font-poppins font-bold text-xl text-[#16211E]">
-            Teacher Notes & Videos{' '}
-            {selectedSubject !== 'ALL' ? `(${selectedSubject})` : ''}
-          </h2>
+      <div className="space-y-4">
+        <h2 className="font-poppins font-bold text-xl text-[#16211E]">
+          Teacher Notes & Study Materials{' '}
+          {selectedSubject !== 'ALL' ? `(${selectedSubject})` : ''}
+        </h2>
+        {loading ? (
+          <Card>
+            <p className="text-sm text-[#5C6663] py-6 text-center">
+              Loading study notes and videos for your stream...
+            </p>
+          </Card>
+        ) : subjectMaterials.length === 0 ? (
+          <Card>
+            <div className="text-center py-8 space-y-2">
+              <BookOpenIcon className="w-10 h-10 text-[#8A9490] mx-auto" />
+              <h3 className="font-poppins font-bold text-lg text-[#16211E]">
+                No study notes or videos posted yet
+              </h3>
+              <p className="text-sm text-[#5C6663]">
+                When your teachers upload notes or video lessons for{' '}
+                {studentStreamLabel || 'your stream'}, they will appear here automatically.
+              </p>
+            </div>
+          </Card>
+        ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {subjectMaterials.map((mat) => {
               const streamTag = formatClassLabel(mat.class, mat.stream);
@@ -355,16 +312,35 @@ export function ModulesTab() {
               );
             })}
           </div>
-        </div>
-      )}
+        )}
+      </div>
 
       {/* Teacher Posted Quizzes & Assessments */}
-      {subjectQuizzes.length > 0 && (
-        <div className="space-y-4">
-          <h2 className="font-poppins font-bold text-xl text-[#16211E]">
-            Class Quizzes & Assessments{' '}
-            {selectedSubject !== 'ALL' ? `(${selectedSubject})` : ''}
-          </h2>
+      <div className="space-y-4">
+        <h2 className="font-poppins font-bold text-xl text-[#16211E]">
+          Class Quizzes & Assessments{' '}
+          {selectedSubject !== 'ALL' ? `(${selectedSubject})` : ''}
+        </h2>
+        {loading ? (
+          <Card>
+            <p className="text-sm text-[#5C6663] py-6 text-center">
+              Loading quizzes for your stream...
+            </p>
+          </Card>
+        ) : subjectQuizzes.length === 0 ? (
+          <Card>
+            <div className="text-center py-8 space-y-2">
+              <ClipboardListIcon className="w-10 h-10 text-[#8A9490] mx-auto" />
+              <h3 className="font-poppins font-bold text-lg text-[#16211E]">
+                No quizzes posted yet
+              </h3>
+              <p className="text-sm text-[#5C6663]">
+                When your teachers publish a quiz or assessment for{' '}
+                {studentStreamLabel || 'your stream'}, you can take it right here.
+              </p>
+            </div>
+          </Card>
+        ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {subjectQuizzes.map((quiz) => {
               const qId = quiz.id || quiz._id;
@@ -459,111 +435,7 @@ export function ModulesTab() {
               );
             })}
           </div>
-        </div>
-      )}
-
-      {/* Modules List */}
-      <div className="space-y-4">
-        {modules.map((module, index) => (
-          <motion.div
-            key={index}
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: index * 0.1 }}
-          >
-            <Card className={module.status === 'locked' ? 'opacity-65' : ''}>
-              <div className="flex items-start justify-between">
-                <div className="flex items-start space-x-4 flex-1">
-                  <div
-                    className={`w-16 h-16 rounded-xl ${getStatusColor(
-                      module.status
-                    )} flex items-center justify-center text-white flex-shrink-0 shadow-sm`}
-                  >
-                    <span className="font-bold text-xl">W{module.week}</span>
-                  </div>
-                  <div className="flex-1">
-                    <div className="flex items-center space-x-3 mb-2">
-                      <h3 className="font-poppins font-bold text-xl text-[#16211E]">
-                        {module.title}
-                      </h3>
-                      {getStatusIcon(module.status)}
-                    </div>
-                    <div className="flex flex-wrap gap-2 mb-3">
-                      {module.topics.map((topic, idx) => (
-                        <span
-                          key={idx}
-                          className="text-xs bg-[#F4F1EA] border border-[#E5E0D5] text-[#3B4744] font-medium px-3 py-1 rounded-full"
-                        >
-                          {topic}
-                        </span>
-                      ))}
-                    </div>
-                    {module.status === 'completed' && module.quizScore && (
-                      <div className="flex items-center space-x-2 text-sm">
-                        <span className="text-[#5C6663]">Quiz Score:</span>
-                        <span className="font-bold text-[#1E7A50]">
-                          {module.quizScore}%
-                        </span>
-                      </div>
-                    )}
-                    {module.status === 'current' && (
-                      <div className="flex items-center space-x-2 text-sm text-[#C85A28]">
-                        <ClockIcon className="w-4 h-4" />
-                        <span className="font-semibold">In Progress</span>
-                      </div>
-                    )}
-                    {module.status === 'locked' && (
-                      <p className="text-sm text-[#5C6663]">
-                        Complete Week {module.week - 1} quiz to unlock
-                      </p>
-                    )}
-                  </div>
-                </div>
-                <div className="flex flex-col space-y-2 ml-4">
-                  {module.status === 'completed' && (
-                    <Button variant="outline" size="sm">
-                      Review
-                    </Button>
-                  )}
-                  {module.status === 'current' && (
-                    <>
-                      <Button variant="primary" size="sm">
-                        Continue
-                      </Button>
-                      <Button variant="outline" size="sm">
-                        Take Quiz
-                      </Button>
-                    </>
-                  )}
-                  {module.status !== 'locked' && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() =>
-                        setHelpTarget({
-                          subject: selectedSubject,
-                          topic: module.title
-                        })
-                      }
-                    >
-                      <HelpCircleIcon className="w-4 h-4 mr-1" />
-                      Need Help?
-                    </Button>
-                  )}
-                  {module.status === 'locked' && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="opacity-50 cursor-not-allowed"
-                    >
-                      Locked
-                    </Button>
-                  )}
-                </div>
-              </div>
-            </Card>
-          </motion.div>
-        ))}
+        )}
       </div>
 
       {/* Interactive Take Quiz Modal */}
