@@ -17,7 +17,7 @@ export function AdminDashboard() {
   const renderContent = () => {
     switch (activeTab) {
       case 'dashboard':
-        return <AdminDashboardTab />;
+        return <AdminDashboardTab onTabChange={setActiveTab} />;
       case 'user-management':
         return <UserManagement />;
       case 'content-moderation':
@@ -27,7 +27,7 @@ export function AdminDashboard() {
       case 'analytics-reports':
         return <AnalyticsReports />;
       case 'classes-streams':
-        return <ClassesStreams />;
+        return <ClassesStreams onTabChange={setActiveTab} />;
       case 'teachers-overview':
         return <TeachersOverview />;
       case 'tickets-support':
@@ -37,7 +37,7 @@ export function AdminDashboard() {
       case 'settings':
         return <Settings />;
       default:
-        return <AdminDashboardTab />;
+        return <AdminDashboardTab onTabChange={setActiveTab} />;
     }
   };
 

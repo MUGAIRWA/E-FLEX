@@ -1,149 +1,159 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { UsersIcon, BookOpenIcon, TrendingUpIcon, EyeIcon, FilterIcon, SearchIcon, UserCheckIcon, BarChart3Icon } from 'lucide-react';
+import { UsersIcon, BookOpenIcon, SearchIcon, RefreshCwIcon } from 'lucide-react';
 import { Card } from '../../../components/ui/Card';
 import { Button } from '../../../components/ui/Button';
+import { userAPI, courseAPI } from '../../../services/api';
+
+const formatClassStream = (cls, stream) => {
+  if (!cls && !stream) return '';
+  const norm = String(cls || '').toLowerCase().replace(/\s+/g, '');
+  const match = norm.match(/^form(\d+)$/);
+  const prettyClass = match ? `Form ${match[1]}` : cls || '';
+  return [prettyClass, stream].filter(Boolean).join(' ');
+};
 
 export function TeachersOverview() {
+  const [teachers, setTeachers] = useState([]);
+  const [students, setStudents] = useState([]);
+  const [courses, setCourses] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [selectedSubject, setSelectedSubject] = useState('all');
   const [selectedStream, setSelectedStream] = useState('all');
   const [selectedClass, setSelectedClass] = useState('all');
-  const [selectedPerformance, setSelectedPerformance] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
 
-  const teachersData = [
-    {
-      id: 1,
-      name: 'Ms. Sarah Wilson',
-      subjects: ['Mathematics'],
-      classes: ['Form 1 Blue', 'Form 1 Yellow'],
-      totalStudents: 87,
-      averagePerformance: 85,
-      status: 'Active'
-    },
-    {
-      id: 2,
-      name: 'Mr. David Brown',
-      subjects: ['English'],
-      classes: ['Form 1 Blue', 'Form 2 Yellow'],
-      totalStudents: 89,
-      averagePerformance: 82,
-      status: 'Active'
-    },
-    {
-      id: 3,
-      name: 'Ms. Emma Davis',
-      subjects: ['Science'],
-      classes: ['Form 2 Blue', 'Form 3 Yellow'],
-      totalStudents: 94,
-      averagePerformance: 88,
-      status: 'Active'
-    },
-    {
-      id: 4,
-      name: 'Mr. John Smith',
-      subjects: ['History'],
-      classes: ['Form 2 Yellow', 'Form 4 Blue'],
-      totalStudents: 76,
-      averagePerformance: 79,
-      status: 'Active'
-    },
-    {
-      id: 5,
-      name: 'Ms. Lisa Johnson',
-      subjects: ['Geography'],
-      classes: ['Form 3 Blue', 'Form 4 Green'],
-      totalStudents: 82,
-      averagePerformance: 86,
-      status: 'Active'
-    },
-    {
-      id: 6,
-      name: 'Mr. Robert Taylor',
-      subjects: ['Mathematics', 'Physics'],
-      classes: ['Form 4 Blue', 'Form 3 Red'],
-      totalStudents: 91,
-      averagePerformance: 91,
-      status: 'Active'
-    }
-  ];
+  const loadData = async () => {
+    setLoading(true);
+    try {
+      const [teachersRes, studentsRes, coursesRes] = await Promise.all([
+        userAPI.getTeachers().catch(() => ({ data: [] })),
+        userAPI.getStudents().catch(() => ({ data: [] })),
+        courseAPI.getCourses({ limit: 100 }).catch(() => ({ data: { courses: [] } }))
+      ]);
 
-  const filteredTeachers = teachersData.filter(teacher => {
-    const matchesSubject = selectedSubject === 'all' || teacher.subjects.some(sub => sub.toLowerCase().includes(selectedSubject));
-    const matchesSearch = teacher.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         teacher.subjects.some(sub => sub.toLowerCase().includes(searchTerm.toLowerCase()));
-    const matchesPerformance = selectedPerformance === 'all' ||
-                              (selectedPerformance === 'high' && teacher.averagePerformance >= 85) ||
-                              (selectedPerformance === 'medium' && teacher.averagePerformance >= 75 && teacher.averagePerformance < 85) ||
-                              (selectedPerformance === 'low' && teacher.averagePerformance < 75);
-    return matchesSubject && matchesSearch && matchesPerformance;
+      setTeachers(Array.isArray(teachersRes.data) ? teachersRes.data : []);
+      setStudents(Array.isArray(studentsRes.data) ? studentsRes.data : []);
+      setCourses(
+        Array.isArray(coursesRes.data?.courses)
+          ? coursesRes.data.courses
+          : Array.isArray(coursesRes.data)
+          ? coursesRes.data
+          : []
+      );
+    } catch (err) {
+      console.error('Failed to load teachers overview:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  const enrichedTeachers = teachers.map((t) => {
+    const rawClasses = Array.isArray(t.classesTaught) ? t.classesTaught : [];
+    const classLabels = rawClasses
+      .map((item) =>
+        typeof item === 'object' && item !== null
+          ? formatClassStream(item.class, item.stream)
+          : formatClassStream(item, '')
+      )
+      .filter(Boolean);
+
+    const teacherCourses = courses.filter(
+      (c) => (c.teacher?.id || c.teacher?._id || c.teacherId) === (t.id || t._id)
+    );
+
+    // Count students in any class/stream taught by this teacher
+    const matchingStudents = students.filter((s) => {
+      const sLabel = formatClassStream(s.class, s.stream).toLowerCase();
+      return classLabels.some((cl) => cl.toLowerCase() === sLabel);
+    });
+
+    return {
+      ...t,
+      id: t.id || t._id,
+      name: `${t.firstName} ${t.lastName}`,
+      subjects: Array.isArray(t.subjects) ? t.subjects : [],
+      classLabels,
+      rawClasses,
+      courseCount: teacherCourses.length,
+      studentCount: matchingStudents.length
+    };
   });
 
-  const handleViewReports = (teacherId) => {
-    console.log('View reports for teacher', teacherId);
-    // Here you would navigate to teacher details or open a modal
-  };
+  const filteredTeachers = enrichedTeachers.filter((teacher) => {
+    const matchesSubject =
+      selectedSubject === 'all' ||
+      teacher.subjects.some((sub) => sub.toLowerCase() === selectedSubject.toLowerCase());
+    const matchesStream =
+      selectedStream === 'all' ||
+      teacher.classLabels.some((cl) => cl.toLowerCase().includes(selectedStream.toLowerCase()));
+    const matchesClass =
+      selectedClass === 'all' ||
+      teacher.rawClasses.some((rc) => {
+        const cVal = typeof rc === 'object' && rc !== null ? rc.class : rc;
+        return String(cVal || '').toLowerCase().replace(/\s+/g, '') === selectedClass.toLowerCase();
+      });
+    const matchesSearch =
+      !searchTerm.trim() ||
+      teacher.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      teacher.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      teacher.subjects.some((sub) => sub.toLowerCase().includes(searchTerm.toLowerCase()));
 
-  const getPerformanceColor = (performance) => {
-    if (performance >= 85) return 'text-green-600';
-    if (performance >= 75) return 'text-yellow-600';
-    return 'text-red-600';
-  };
+    return matchesSubject && matchesStream && matchesClass && matchesSearch;
+  });
 
-  const getPerformanceBarColor = (performance) => {
-    if (performance >= 85) return 'bg-green-500';
-    if (performance >= 75) return 'bg-yellow-500';
-    return 'bg-red-500';
-  };
+  const allSubjectOptions = [
+    ...new Set(enrichedTeachers.flatMap((t) => t.subjects).filter(Boolean))
+  ];
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold text-gray-900">Teachers Overview</h1>
-        <div className="text-sm text-gray-500">Give visibility into teacher workload and performance</div>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold text-[#16211E]">Teachers Overview</h1>
+          <p className="text-sm text-[#5C6663] mt-1">
+            Live directory of registered teachers, assigned streams, and active courses.
+          </p>
+        </div>
+        <Button variant="outline" onClick={loadData} disabled={loading}>
+          <RefreshCwIcon className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+          Refresh
+        </Button>
       </div>
 
       {/* Filters */}
-      <Card className="p-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+      <Card className="p-5">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           <div className="relative">
-            <SearchIcon className="absolute left-3 top-3 h-5 w-5 text-gray-400" />
+            <SearchIcon className="absolute left-3.5 top-3 h-5 w-5 text-[#5C6663]" />
             <input
               type="text"
-              placeholder="Search teachers..."
+              placeholder="Search teacher or subject..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent w-full"
+              className="pl-11 pr-4 py-2 border border-[#D8D1C4] rounded-xl w-full"
             />
           </div>
           <select
             value={selectedSubject}
             onChange={(e) => setSelectedSubject(e.target.value)}
-            className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
+            className="px-4 py-2 border border-[#D8D1C4] bg-white rounded-xl"
           >
             <option value="all">All Subjects</option>
-            <option value="mathematics">Mathematics</option>
-            <option value="english">English</option>
-            <option value="science">Science</option>
-            <option value="history">History</option>
-            <option value="geography">Geography</option>
-            <option value="physics">Physics</option>
-          </select>
-          <select
-            value={selectedStream}
-            onChange={(e) => setSelectedStream(e.target.value)}
-            className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
-          >
-            <option value="all">All Streams</option>
-            <option value="blue">Blue</option>
-            <option value="yellow">Yellow</option>
-            <option value="red">Red</option>
-            <option value="green">Green</option>
+            {allSubjectOptions.map((subj) => (
+              <option key={subj} value={subj}>
+                {subj}
+              </option>
+            ))}
           </select>
           <select
             value={selectedClass}
             onChange={(e) => setSelectedClass(e.target.value)}
-            className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
+            className="px-4 py-2 border border-[#D8D1C4] bg-white rounded-xl"
           >
             <option value="all">All Classes</option>
             <option value="form1">Form 1</option>
@@ -152,146 +162,131 @@ export function TeachersOverview() {
             <option value="form4">Form 4</option>
           </select>
           <select
-            value={selectedPerformance}
-            onChange={(e) => setSelectedPerformance(e.target.value)}
-            className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
+            value={selectedStream}
+            onChange={(e) => setSelectedStream(e.target.value)}
+            className="px-4 py-2 border border-[#D8D1C4] bg-white rounded-xl"
           >
-            <option value="all">All Performance</option>
-            <option value="high">High (85%+)</option>
-            <option value="medium">Medium (75-84%)</option>
-            <option value="low">Low (75%)</option>
+            <option value="all">All Streams</option>
+            {['Blue', 'Yellow', 'Green', 'Red', 'White', 'Pink'].map((s) => (
+              <option key={s} value={s}>
+                {s}
+              </option>
+            ))}
           </select>
         </div>
       </Card>
 
       {/* Teachers Table */}
       <Card className="p-6">
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Subjects</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Classes</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total Students</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Average Performance</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {filteredTeachers.map((teacher) => (
-                <motion.tr
-                  key={teacher.id}
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  className="hover:bg-gray-50"
-                >
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{teacher.name}</td>
-                  <td className="px-6 py-4 text-sm text-gray-500">
-                    <div className="flex flex-wrap gap-1">
-                      {teacher.subjects.map((subject, index) => (
-                        <span
-                          key={index}
-                          className="inline-flex px-2 py-1 text-xs font-medium bg-blue-100 text-blue-800 rounded"
-                        >
-                          {subject}
-                        </span>
-                      ))}
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 text-sm text-gray-500">
-                    <div className="flex flex-wrap gap-1">
-                      {teacher.classes.map((cls, index) => (
-                        <span
-                          key={index}
-                          className="inline-flex px-2 py-1 text-xs font-medium bg-gray-100 text-gray-800 rounded"
-                        >
-                          {cls}
-                        </span>
-                      ))}
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 flex items-center">
-                    <UsersIcon className="w-4 h-4 mr-2" />
-                    {teacher.totalStudents}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm">
-                    <div className="flex items-center space-x-3">
-                      <div className="w-20 bg-gray-200 rounded-full h-2">
-                        <div
-                          className={`h-2 rounded-full ${getPerformanceBarColor(teacher.averagePerformance)}`}
-                          style={{ width: `${teacher.averagePerformance}%` }}
-                        ></div>
+        {loading ? (
+          <div className="flex justify-center py-12">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#134E4A]" />
+          </div>
+        ) : filteredTeachers.length === 0 ? (
+          <div className="text-center py-12 text-[#5C6663]">
+            No registered teachers match the selected filters.
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead className="bg-[#F8F6F1] border-b border-[#E5E0D5]">
+                <tr>
+                  <th className="px-5 py-3 text-left text-xs font-bold text-[#5C6663] uppercase">
+                    Teacher
+                  </th>
+                  <th className="px-5 py-3 text-left text-xs font-bold text-[#5C6663] uppercase">
+                    Subjects
+                  </th>
+                  <th className="px-5 py-3 text-left text-xs font-bold text-[#5C6663] uppercase">
+                    Classes & Streams Taught
+                  </th>
+                  <th className="px-5 py-3 text-left text-xs font-bold text-[#5C6663] uppercase">
+                    Active Courses
+                  </th>
+                  <th className="px-5 py-3 text-left text-xs font-bold text-[#5C6663] uppercase">
+                    Students in Stream(s)
+                  </th>
+                  <th className="px-5 py-3 text-left text-xs font-bold text-[#5C6663] uppercase">
+                    Status
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-[#EFECE4]">
+                {filteredTeachers.map((teacher) => (
+                  <motion.tr
+                    key={teacher.id}
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    className="hover:bg-[#F8F6F1]/60"
+                  >
+                    <td className="px-5 py-4 whitespace-nowrap">
+                      <div className="text-sm font-semibold text-[#16211E]">{teacher.name}</div>
+                      <div className="text-xs text-[#5C6663]">{teacher.email}</div>
+                      {teacher.phoneNumber && (
+                        <div className="text-xs text-[#5C6663]">{teacher.phoneNumber}</div>
+                      )}
+                    </td>
+                    <td className="px-5 py-4">
+                      <div className="flex flex-wrap gap-1.5">
+                        {teacher.subjects.length > 0 ? (
+                          teacher.subjects.map((subject, idx) => (
+                            <span
+                              key={idx}
+                              className="inline-flex px-2.5 py-1 text-xs font-semibold bg-[#134E4A]/10 text-[#134E4A] rounded-lg"
+                            >
+                              {subject}
+                            </span>
+                          ))
+                        ) : (
+                          <span className="text-xs text-[#5C6663]">—</span>
+                        )}
                       </div>
-                      <span className={`font-medium ${getPerformanceColor(teacher.averagePerformance)}`}>
-                        {teacher.averagePerformance}%
+                    </td>
+                    <td className="px-5 py-4">
+                      <div className="flex flex-wrap gap-1.5">
+                        {teacher.classLabels.length > 0 ? (
+                          teacher.classLabels.map((cls, idx) => (
+                            <span
+                              key={idx}
+                              className="inline-flex px-2.5 py-1 text-xs font-medium bg-[#F8F6F1] border border-[#E5E0D5] text-[#16211E] rounded-lg"
+                            >
+                              {cls}
+                            </span>
+                          ))
+                        ) : (
+                          <span className="text-xs text-[#5C6663]">—</span>
+                        )}
+                      </div>
+                    </td>
+                    <td className="px-5 py-4 whitespace-nowrap text-sm text-[#16211E] font-medium">
+                      <span className="inline-flex items-center">
+                        <BookOpenIcon className="w-4 h-4 mr-1.5 text-[#134E4A]" />
+                        {teacher.courseCount}
                       </span>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => handleViewReports(teacher.id)}
-                    >
-                      <EyeIcon className="w-4 h-4 mr-1" />
-                      View Reports
-                    </Button>
-                  </td>
-                </motion.tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </Card>
-
-      {/* Teacher Details Modal/Card (for demonstration) */}
-      <Card className="p-6">
-        <h2 className="text-xl font-semibold mb-4">Teacher Performance Overview</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredTeachers.slice(0, 3).map((teacher) => (
-            <motion.div
-              key={teacher.id}
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              className="p-4 border border-gray-200 rounded-lg"
-            >
-              <div className="flex items-center space-x-3 mb-3">
-                <div className="w-10 h-10 bg-primary rounded-full flex items-center justify-center text-white font-bold">
-                  {teacher.name.split(' ').map(n => n[0]).join('')}
-                </div>
-                <div>
-                  <h3 className="font-medium text-gray-900">{teacher.name}</h3>
-                  <p className="text-sm text-gray-500">{teacher.subjects.join(', ')}</p>
-                </div>
-              </div>
-              <div className="space-y-2">
-                <div className="flex justify-between text-sm">
-                  <span>Classes:</span>
-                  <span>{teacher.classes.length}</span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span>Students:</span>
-                  <span>{teacher.totalStudents}</span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span>Performance:</span>
-                  <span className={getPerformanceColor(teacher.averagePerformance)}>
-                    {teacher.averagePerformance}%
-                  </span>
-                </div>
-              </div>
-              <div className="mt-3">
-                <div className="w-full bg-gray-200 rounded-full h-2">
-                  <div
-                    className={`h-2 rounded-full ${getPerformanceBarColor(teacher.averagePerformance)}`}
-                    style={{ width: `${teacher.averagePerformance}%` }}
-                  ></div>
-                </div>
-              </div>
-            </motion.div>
-          ))}
-        </div>
+                    </td>
+                    <td className="px-5 py-4 whitespace-nowrap text-sm text-[#16211E] font-medium">
+                      <span className="inline-flex items-center">
+                        <UsersIcon className="w-4 h-4 mr-1.5 text-[#C85A28]" />
+                        {teacher.studentCount}
+                      </span>
+                    </td>
+                    <td className="px-5 py-4 whitespace-nowrap">
+                      <span
+                        className={`inline-flex px-2.5 py-1 text-xs font-semibold rounded-full ${
+                          teacher.isActive !== false
+                            ? 'bg-[#1E7A50]/10 text-[#1E7A50]'
+                            : 'bg-red-100 text-red-800'
+                        }`}
+                      >
+                        {teacher.isActive !== false ? 'Active' : 'Inactive'}
+                      </span>
+                    </td>
+                  </motion.tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </Card>
     </div>
   );

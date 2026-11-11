@@ -22,84 +22,8 @@ async function main() {
     }
   });
 
-  const teacher = await prisma.user.upsert({
-    where: { email: 'teacher@eflex.edu' },
-    update: {
-      role: 'teacher',
-      isActive: true,
-      subjects: ['Mathematics', 'Physics', 'Chemistry'],
-      classesTaught: [
-        { class: 'form1', stream: 'Blue' },
-        { class: 'form2', stream: 'Green' },
-        { class: 'form3', stream: 'Blue' }
-      ],
-      streamsTaught: ['Blue', 'Green']
-    },
-    create: {
-      firstName: 'Sarah',
-      lastName: 'Johnson',
-      email: 'teacher@eflex.edu',
-      password: passwordHash,
-      role: 'teacher',
-      teacherId: 'TCH-1001',
-      phoneNumber: '+254700000002',
-      subjects: ['Mathematics', 'Physics', 'Chemistry'],
-      classesTaught: [
-        { class: 'form1', stream: 'Blue' },
-        { class: 'form2', stream: 'Green' },
-        { class: 'form3', stream: 'Blue' }
-      ],
-      streamsTaught: ['Blue', 'Green']
-    }
-  });
-
-  const student = await prisma.user.upsert({
-    where: { email: 'student@eflex.edu' },
-    update: {
-      role: 'student',
-      isActive: true,
-      class: 'form3',
-      stream: 'Blue'
-    },
-    create: {
-      firstName: 'John',
-      lastName: 'Doe',
-      email: 'student@eflex.edu',
-      password: passwordHash,
-      role: 'student',
-      studentId: 'STU-1001',
-      admissionNumber: 'ADM-2026-001',
-      class: 'form3',
-      stream: 'Blue',
-      phoneNumber: '+254700000003'
-    }
-  });
-
-  const parent = await prisma.user.upsert({
-    where: { email: 'parent@eflex.edu' },
-    update: {
-      role: 'parent',
-      isActive: true,
-      childEmail: student.email,
-      children: { connect: { id: student.id } }
-    },
-    create: {
-      firstName: 'Jane',
-      lastName: 'Doe',
-      email: 'parent@eflex.edu',
-      password: passwordHash,
-      role: 'parent',
-      phoneNumber: '+254700000004',
-      childEmail: student.email,
-      children: { connect: { id: student.id } }
-    }
-  });
-
-  console.log('Seeded accounts (all with password: password123):');
-  console.log(`  Admin:   ${admin.email} (role: ${admin.role})`);
-  console.log(`  Teacher: ${teacher.email} (role: ${teacher.role})`);
-  console.log(`  Parent:  ${parent.email} (role: ${parent.role})`);
-  console.log(`  Student: ${student.email} (role: ${student.role})`);
+  console.log('Seeded clean database with administrator account:');
+  console.log(`  Admin: ${admin.email} (password: password123, role: ${admin.role})`);
 }
 
 main()
@@ -110,4 +34,3 @@ main()
   .finally(async () => {
     await prisma.$disconnect();
   });
-

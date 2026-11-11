@@ -1,10 +1,12 @@
 const express = require('express');
 const router = express.Router();
 const {
+  createAnyUser,
   createStudent,
   createTeacher,
   createParent,
   getUsers,
+  getUsersByRole,
   getUserStats,
   updateUser,
   deleteUser
@@ -16,13 +18,14 @@ const { protect, authorize } = require('../middleware/auth');
 router.use(protect);
 router.use(authorize('admin'));
 
-router.route('/').get(getUsers);
+router.route('/').get(getUsers).post(createAnyUser);
 router.route('/stats').get(getUserStats);
-router.route('/:id').put(updateUser).delete(deleteUser);
 
-// Role-specific creation routes
-router.post('/students', createStudent);
-router.post('/teachers', createTeacher);
-router.post('/parents', createParent);
+// Role-specific list & creation routes
+router.route('/students').get(getUsersByRole('student')).post(createStudent);
+router.route('/teachers').get(getUsersByRole('teacher')).post(createTeacher);
+router.route('/parents').get(getUsersByRole('parent')).post(createParent);
+
+router.route('/:id').put(updateUser).delete(deleteUser);
 
 module.exports = router;

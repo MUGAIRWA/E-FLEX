@@ -1,322 +1,200 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { HelpCircleIcon, MessageSquareIcon, AlertTriangleIcon, CheckCircleIcon, ClockIcon, UserIcon, FilterIcon, SearchIcon, SendIcon } from 'lucide-react';
+import {
+  MessageSquareIcon,
+  SearchIcon,
+  SendIcon,
+  RefreshCwIcon
+} from 'lucide-react';
 import { Card } from '../../../components/ui/Card';
 import { Button } from '../../../components/ui/Button';
+import { notificationAPI } from '../../../services/api';
 
 export function TicketsSupport() {
-  const [selectedCategory, setSelectedCategory] = useState('all');
-  const [selectedStatus, setSelectedStatus] = useState('all');
-  const [selectedPriority, setSelectedPriority] = useState('all');
+  const [tickets, setTickets] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedTicket, setSelectedTicket] = useState(null);
-  const [newMessage, setNewMessage] = useState('');
+  const [replyMessage, setReplyMessage] = useState('');
+  const [sending, setSending] = useState(false);
 
-  const ticketsData = [
-    {
-      id: 'TCK001',
-      user: 'John Doe',
-      category: 'Technical',
-      priority: 'High',
-      status: 'Open',
-      date: '2024-01-15',
-      assignedTo: 'Admin',
-      subject: 'Login Issues',
-      description: 'User unable to login to the platform',
-      messages: [
-        { from: 'John Doe', message: 'I cannot log in to my account', time: '2024-01-15 10:00' },
-        { from: 'Admin', message: 'Please try resetting your password', time: '2024-01-15 10:30' }
-      ]
-    },
-    {
-      id: 'TCK002',
-      user: 'Jane Smith',
-      category: 'Payment',
-      priority: 'Medium',
-      status: 'In Review',
-      date: '2024-01-14',
-      assignedTo: 'Support',
-      subject: 'Payment Not Processed',
-      description: 'Subject payment was not processed correctly',
-      messages: [
-        { from: 'Jane Smith', message: 'My payment for Mathematics was not processed', time: '2024-01-14 14:00' }
-      ]
-    },
-    {
-      id: 'TCK003',
-      user: 'Mike Johnson',
-      category: 'Academic',
-      priority: 'Low',
-      status: 'Resolved',
-      date: '2024-01-13',
-      assignedTo: 'Admin',
-      subject: 'Grade Inquiry',
-      description: 'Student questioning their assignment grade',
-      messages: [
-        { from: 'Mike Johnson', message: 'I think my grade is wrong', time: '2024-01-13 09:00' },
-        { from: 'Admin', message: 'Grade has been reviewed and confirmed', time: '2024-01-13 11:00' }
-      ]
-    },
-    {
-      id: 'TCK004',
-      user: 'Alice Brown',
-      category: 'Technical',
-      priority: 'High',
-      status: 'Open',
-      date: '2024-01-12',
-      assignedTo: null,
-      subject: 'App Crashing',
-      description: 'Mobile app crashes when accessing assignments',
-      messages: [
-        { from: 'Alice Brown', message: 'The app keeps crashing', time: '2024-01-12 16:00' }
-      ]
+  const loadTickets = async () => {
+    setLoading(true);
+    try {
+      const res = await notificationAPI.getHelpRequests().catch(() => ({ data: [] }));
+      const list = Array.isArray(res.data?.helpRequests)
+        ? res.data.helpRequests
+        : Array.isArray(res.data)
+        ? res.data
+        : [];
+      setTickets(list);
+    } catch (err) {
+      console.error('Failed to load support tickets:', err);
+    } finally {
+      setLoading(false);
     }
-  ];
+  };
 
-  const filteredTickets = ticketsData.filter(ticket => {
-    const matchesCategory = selectedCategory === 'all' || ticket.category.toLowerCase() === selectedCategory;
-    const matchesStatus = selectedStatus === 'all' || ticket.status.toLowerCase().replace(' ', '') === selectedStatus;
-    const matchesPriority = selectedPriority === 'all' || ticket.priority.toLowerCase() === selectedPriority;
-    const matchesSearch = ticket.user.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         ticket.subject.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         ticket.id.toLowerCase().includes(searchTerm.toLowerCase());
-    return matchesCategory && matchesStatus && matchesPriority && matchesSearch;
+  useEffect(() => {
+    loadTickets();
+  }, []);
+
+  const handleSendReply = async (ticketId) => {
+    if (!replyMessage.trim()) return;
+    setSending(true);
+    try {
+      await notificationAPI.replyToHelpRequest(ticketId, { message: replyMessage.trim() });
+      setReplyMessage('');
+      await loadTickets();
+    } catch (err) {
+      alert(err.response?.data?.message || 'Failed to send reply');
+    } finally {
+      setSending(false);
+    }
+  };
+
+  const filteredTickets = tickets.filter((ticket) => {
+    const title = (ticket.title || ticket.subject || '').toLowerCase();
+    const msg = (ticket.message || ticket.description || '').toLowerCase();
+    const userName = ticket.user
+      ? `${ticket.user.firstName} ${ticket.user.lastName}`.toLowerCase()
+      : '';
+    return (
+      !searchTerm.trim() ||
+      title.includes(searchTerm.toLowerCase()) ||
+      msg.includes(searchTerm.toLowerCase()) ||
+      userName.includes(searchTerm.toLowerCase())
+    );
   });
-
-  const handleStatusChange = (ticketId, newStatus) => {
-    console.log(`Change status of ${ticketId} to ${newStatus}`);
-    // Here you would update the ticket status
-  };
-
-  const handleAssign = (ticketId, assignee) => {
-    console.log(`Assign ${ticketId} to ${assignee}`);
-    // Here you would assign the ticket
-  };
-
-  const handleSendMessage = (ticketId) => {
-    if (newMessage.trim()) {
-      console.log(`Send message to ${ticketId}: ${newMessage}`);
-      setNewMessage('');
-      // Here you would send the message
-    }
-  };
-
-  const getStatusColor = (status) => {
-    switch (status) {
-      case 'Open':
-        return 'bg-red-100 text-red-800';
-      case 'In Review':
-        return 'bg-yellow-100 text-yellow-800';
-      case 'Resolved':
-        return 'bg-green-100 text-green-800';
-      default:
-        return 'bg-gray-100 text-gray-800';
-    }
-  };
-
-  const getPriorityColor = (priority) => {
-    switch (priority) {
-      case 'High':
-        return 'text-red-600';
-      case 'Medium':
-        return 'text-yellow-600';
-      case 'Low':
-        return 'text-green-600';
-      default:
-        return 'text-gray-600';
-    }
-  };
-
-  const getPriorityIcon = (priority) => {
-    switch (priority) {
-      case 'High':
-        return <AlertTriangleIcon className="w-4 h-4" />;
-      case 'Medium':
-        return <ClockIcon className="w-4 h-4" />;
-      case 'Low':
-        return <CheckCircleIcon className="w-4 h-4" />;
-      default:
-        return <HelpCircleIcon className="w-4 h-4" />;
-    }
-  };
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold text-gray-900">Tickets / Support</h1>
-        <div className="text-sm text-gray-500">Manage all technical and academic support requests</div>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold text-[#16211E]">Tickets & Support</h1>
+          <p className="text-sm text-[#5C6663] mt-1">
+            Live support and help requests submitted by students, parents, and teachers.
+          </p>
+        </div>
+        <Button variant="outline" onClick={loadTickets} disabled={loading}>
+          <RefreshCwIcon className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+          Refresh
+        </Button>
       </div>
 
-      {/* Filters */}
-      <Card className="p-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-          <div className="relative">
-            <SearchIcon className="absolute left-3 top-3 h-5 w-5 text-gray-400" />
-            <input
-              type="text"
-              placeholder="Search tickets..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent w-full"
-            />
-          </div>
-          <select
-            value={selectedCategory}
-            onChange={(e) => setSelectedCategory(e.target.value)}
-            className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
-          >
-            <option value="all">All Categories</option>
-            <option value="technical">Technical</option>
-            <option value="payment">Payment</option>
-            <option value="academic">Academic</option>
-          </select>
-          <select
-            value={selectedStatus}
-            onChange={(e) => setSelectedStatus(e.target.value)}
-            className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
-          >
-            <option value="all">All Status</option>
-            <option value="open">Open</option>
-            <option value="inreview">In Review</option>
-            <option value="resolved">Resolved</option>
-          </select>
-          <select
-            value={selectedPriority}
-            onChange={(e) => setSelectedPriority(e.target.value)}
-            className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
-          >
-            <option value="all">All Priorities</option>
-            <option value="high">High</option>
-            <option value="medium">Medium</option>
-            <option value="low">Low</option>
-          </select>
+      <Card className="p-5">
+        <div className="relative">
+          <SearchIcon className="absolute left-3.5 top-3 h-5 w-5 text-[#5C6663]" />
+          <input
+            type="text"
+            placeholder="Search support tickets..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="pl-11 pr-4 py-2.5 border border-[#D8D1C4] rounded-xl w-full"
+          />
         </div>
       </Card>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Tickets Table */}
         <div className="lg:col-span-2">
           <Card className="p-6">
-            <h2 className="text-xl font-semibold mb-4">Support Tickets</h2>
-            <div className="space-y-4">
-              {filteredTickets.map((ticket) => (
-                <motion.div
-                  key={ticket.id}
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  className={`p-4 border rounded-lg cursor-pointer transition-all ${
-                    selectedTicket?.id === ticket.id ? 'border-primary bg-primary/5' : 'border-gray-200 hover:border-gray-300'
-                  }`}
-                  onClick={() => setSelectedTicket(ticket)}
-                >
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="flex items-center space-x-3">
-                      <span className="font-medium text-gray-900">{ticket.id}</span>
-                      <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(ticket.status)}`}>
-                        {ticket.status}
-                      </span>
-                      <div className={`flex items-center space-x-1 ${getPriorityColor(ticket.priority)}`}>
-                        {getPriorityIcon(ticket.priority)}
-                        <span className="text-xs font-medium">{ticket.priority}</span>
+            <h2 className="text-lg font-bold text-[#16211E] mb-4">
+              Support Requests ({filteredTickets.length})
+            </h2>
+            {loading ? (
+              <div className="flex justify-center py-12">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#134E4A]" />
+              </div>
+            ) : filteredTickets.length === 0 ? (
+              <p className="text-sm text-[#5C6663] py-8 text-center">
+                No support tickets have been submitted yet.
+              </p>
+            ) : (
+              <div className="space-y-3">
+                {filteredTickets.map((ticket) => {
+                  const tid = ticket.id || ticket._id;
+                  const isSelected = (selectedTicket?.id || selectedTicket?._id) === tid;
+                  return (
+                    <motion.div
+                      key={tid}
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      onClick={() => setSelectedTicket(ticket)}
+                      className={`p-4 border rounded-xl cursor-pointer transition-colors ${
+                        isSelected
+                          ? 'border-[#134E4A] bg-[#134E4A]/5'
+                          : 'border-[#E5E0D5] bg-[#F8F6F1]/50 hover:border-[#134E4A]/50'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="font-semibold text-[#16211E]">
+                          {ticket.title || ticket.subject || 'Support Request'}
+                        </span>
+                        <span className="text-xs text-[#5C6663]">
+                          {ticket.createdAt
+                            ? new Date(ticket.createdAt).toLocaleDateString()
+                            : ''}
+                        </span>
                       </div>
-                    </div>
-                    <span className="text-sm text-gray-500">{ticket.date}</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h3 className="font-medium text-gray-900">{ticket.subject}</h3>
-                      <p className="text-sm text-gray-600">by {ticket.user} • {ticket.category}</p>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-sm text-gray-500">Assigned to</p>
-                      <p className="text-sm font-medium">{ticket.assignedTo || 'Unassigned'}</p>
-                    </div>
-                  </div>
-                </motion.div>
-              ))}
-            </div>
+                      <p className="text-sm text-[#5C6663] line-clamp-2">
+                        {ticket.message || ticket.description}
+                      </p>
+                      {ticket.user && (
+                        <p className="text-xs font-medium text-[#134E4A] mt-2">
+                          From: {ticket.user.firstName} {ticket.user.lastName} ({ticket.user.email})
+                        </p>
+                      )}
+                    </motion.div>
+                  );
+                })}
+              </div>
+            )}
           </Card>
         </div>
 
-        {/* Ticket Details */}
         <div>
           {selectedTicket ? (
-            <Card className="p-6">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-xl font-semibold">{selectedTicket.id}</h2>
-                <div className="flex space-x-2">
-                  <select
-                    value={selectedTicket.status}
-                    onChange={(e) => handleStatusChange(selectedTicket.id, e.target.value)}
-                    className="px-3 py-1 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-primary focus:border-transparent"
-                  >
-                    <option value="Open">Open</option>
-                    <option value="In Review">In Review</option>
-                    <option value="Resolved">Resolved</option>
-                  </select>
-                  <select
-                    value={selectedTicket.assignedTo || ''}
-                    onChange={(e) => handleAssign(selectedTicket.id, e.target.value)}
-                    className="px-3 py-1 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-primary focus:border-transparent"
-                  >
-                    <option value="">Unassigned</option>
-                    <option value="Admin">Admin</option>
-                    <option value="Support">Support</option>
-                  </select>
-                </div>
+            <Card className="p-6 space-y-4">
+              <div>
+                <h3 className="text-lg font-bold text-[#16211E]">
+                  {selectedTicket.title || selectedTicket.subject || 'Support Ticket'}
+                </h3>
+                {selectedTicket.user && (
+                  <p className="text-xs text-[#5C6663] mt-0.5">
+                    Submitted by {selectedTicket.user.firstName} {selectedTicket.user.lastName}
+                  </p>
+                )}
+              </div>
+              <div className="p-3.5 rounded-xl bg-[#F8F6F1] border border-[#E5E0D5] text-sm text-[#16211E]">
+                {selectedTicket.message || selectedTicket.description}
               </div>
 
-              <div className="space-y-4">
-                <div>
-                  <h3 className="font-medium text-gray-900">{selectedTicket.subject}</h3>
-                  <p className="text-sm text-gray-600">{selectedTicket.description}</p>
-                </div>
-
-                <div className="flex items-center space-x-4 text-sm text-gray-500">
-                  <span>Category: {selectedTicket.category}</span>
-                  <span>Priority: {selectedTicket.priority}</span>
-                  <span>User: {selectedTicket.user}</span>
-                </div>
-
-                {/* Messages */}
-                <div className="space-y-3 max-h-64 overflow-y-auto">
-                  {selectedTicket.messages.map((msg, index) => (
-                    <div key={index} className="flex space-x-3">
-                      <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center text-white text-xs font-bold">
-                        {msg.from.split(' ').map(n => n[0]).join('')}
-                      </div>
-                      <div className="flex-1">
-                        <div className="flex items-center space-x-2">
-                          <span className="font-medium text-sm">{msg.from}</span>
-                          <span className="text-xs text-gray-500">{msg.time}</span>
-                        </div>
-                        <p className="text-sm text-gray-700 mt-1">{msg.message}</p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-
-                {/* Send Message */}
-                <div className="flex space-x-2">
-                  <input
-                    type="text"
-                    placeholder="Type your message..."
-                    value={newMessage}
-                    onChange={(e) => setNewMessage(e.target.value)}
-                    className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
-                    onKeyPress={(e) => e.key === 'Enter' && handleSendMessage(selectedTicket.id)}
-                  />
-                  <Button onClick={() => handleSendMessage(selectedTicket.id)}>
-                    <SendIcon className="w-4 h-4" />
-                  </Button>
-                </div>
+              <div className="space-y-2 pt-2">
+                <label className="block text-xs font-semibold text-[#16211E]">
+                  Send Reply Notification
+                </label>
+                <textarea
+                  rows={3}
+                  value={replyMessage}
+                  onChange={(e) => setReplyMessage(e.target.value)}
+                  placeholder="Write a response..."
+                  className="w-full px-3 py-2 border border-[#D8D1C4] rounded-xl text-sm"
+                />
+                <Button
+                  className="w-full"
+                  disabled={sending || !replyMessage.trim()}
+                  onClick={() => handleSendReply(selectedTicket.id || selectedTicket._id)}
+                >
+                  <SendIcon className="w-4 h-4 mr-2" />
+                  {sending ? 'Sending...' : 'Send Reply'}
+                </Button>
               </div>
             </Card>
           ) : (
             <Card className="p-6">
-              <div className="text-center text-gray-500">
-                <MessageSquareIcon className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                <p>Select a ticket to view details</p>
+              <div className="text-center text-[#5C6663] py-8">
+                <MessageSquareIcon className="w-10 h-10 mx-auto mb-3 opacity-50" />
+                <p className="text-sm">Select a support ticket to view details and reply.</p>
               </div>
             </Card>
           )}
