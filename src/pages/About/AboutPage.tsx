@@ -440,13 +440,12 @@ export function AboutPage() {
       <footer className="bg-[#16211E] text-[#EAE6DF] py-14 px-4 sm:px-6 lg:px-8 mt-auto">
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-start md:items-center justify-between gap-8">
           <div>
-            <div className="flex items-center gap-2.5 mb-2">
-              <div className="w-8 h-8 rounded-lg bg-[#134E4A] flex items-center justify-center text-white">
-                <BookOpenIcon className="w-4 h-4" />
-              </div>
-              <span className="font-poppins font-bold text-xl text-white">
-                E-Flex<span className="text-[#C85A28]">.</span>
-              </span>
+            <div className="flex items-center gap-2.5 mb-3">
+              <img
+                src="/logo-light.png"
+                alt="eflex"
+                className="h-9 w-auto object-contain"
+              />
             </div>
             <p className="text-sm text-[#9BA6A2] max-w-sm">
               Continuous digital learning, structured holiday modules, and transparent academic

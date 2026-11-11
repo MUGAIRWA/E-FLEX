@@ -76,17 +76,11 @@ export function Navbar({ isLoggedIn = false }: NavbarProps) {
         <div className="flex justify-between items-center h-20">
           {/* Brand Logo */}
           <Link to="/" className="flex items-center gap-3 group">
-            <div className="w-10 h-10 rounded-xl bg-[#134E4A] flex items-center justify-center text-[#FAF8F5] shadow-sm group-hover:bg-[#0E3B38] transition-colors">
-              <BookOpenIcon className="w-5 h-5" />
-            </div>
-            <div className="flex flex-col">
-              <span className="font-poppins font-bold text-xl tracking-tight text-[#16211E] leading-none">
-                E-Flex<span className="text-[#C85A28]">.</span>
-              </span>
-              <span className="text-[11px] font-medium tracking-wider uppercase text-[#5C6663] mt-0.5">
-                Holiday & Term Study
-              </span>
-            </div>
+            <img
+              src="/logo.png"
+              alt="eflex"
+              className="h-9 sm:h-10 w-auto object-contain"
+            />
           </Link>
 
           {/* Desktop Navigation */}

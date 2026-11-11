@@ -238,9 +238,13 @@ export function DashboardLayout({
               </button>
               <button
                 onClick={() => navigate('/')}
-                className="font-poppins font-bold text-2xl text-[#16211E] tracking-tight"
+                className="flex items-center"
               >
-                E-Flex<span className="text-[#C85A28]">.</span>
+                <img
+                  src="/logo.png"
+                  alt="eflex"
+                  className="h-8 sm:h-9 w-auto object-contain"
+                />
               </button>
             </div>
             <div className="flex items-center space-x-4">

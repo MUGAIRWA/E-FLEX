@@ -95,14 +95,13 @@ const AuthPage = () => {
           <button
             type="button"
             onClick={() => navigate('/')}
-            className="inline-flex items-center gap-2.5 text-left group"
+            className="inline-flex items-center text-left group"
           >
-            <div className="w-9 h-9 rounded-xl bg-white/15 flex items-center justify-center text-white font-bold">
-              E
-            </div>
-            <span className="font-poppins font-bold text-2xl tracking-tight">
-              E-Flex<span className="text-[#C85A28]">.</span>
-            </span>
+            <img
+              src="/logo-light.png"
+              alt="eflex"
+              className="h-10 w-auto object-contain"
+            />
           </button>
 
           <div className="mt-14">
