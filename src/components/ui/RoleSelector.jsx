@@ -1,5 +1,4 @@
 import React from 'react';
-import { motion } from 'framer-motion';
 import { GraduationCapIcon, UsersIcon, BookOpenIcon, ShieldIcon } from 'lucide-react';
 
 const RoleSelector = ({ selectedRole, onRoleChange }) => {
@@ -7,46 +6,41 @@ const RoleSelector = ({ selectedRole, onRoleChange }) => {
     {
       id: 'student',
       label: 'Student',
-      icon: <GraduationCapIcon className="w-5 h-5" />,
-      emoji: '👨‍🎓'
+      icon: <GraduationCapIcon className="w-4 h-4" />
     },
     {
       id: 'parent',
       label: 'Parent',
-      icon: <UsersIcon className="w-5 h-5" />,
-      emoji: '👨‍👩‍👧'
+      icon: <UsersIcon className="w-4 h-4" />
     },
     {
       id: 'teacher',
       label: 'Teacher',
-      icon: <BookOpenIcon className="w-5 h-5" />,
-      emoji: '👩‍🏫'
+      icon: <BookOpenIcon className="w-4 h-4" />
     },
     {
       id: 'admin',
       label: 'Admin',
-      icon: <ShieldIcon className="w-5 h-5" />,
-      emoji: '🧑‍💼'
+      icon: <ShieldIcon className="w-4 h-4" />
     }
   ];
 
   return (
-    <div className="flex flex-wrap justify-center gap-2 mb-8">
+    <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 bg-[#F4F1EA] p-1.5 rounded-xl mb-6 border border-[#E5E0D5]">
       {roles.map((role) => (
-        <motion.button
+        <button
           key={role.id}
-          whileHover={{ scale: 1.05 }}
-          whileTap={{ scale: 0.95 }}
+          type="button"
           onClick={() => onRoleChange(role.id)}
-          className={`flex items-center gap-2 px-4 py-3 rounded-full text-sm font-medium transition-all duration-300 ${
+          className={`flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg text-xs sm:text-sm font-semibold transition-all duration-200 ${
             selectedRole === role.id
-              ? 'bg-gradient-to-r from-primary to-accent text-white shadow-lg'
-              : 'bg-white text-gray-700 border-2 border-gray-200 hover:border-primary hover:text-primary'
+              ? 'bg-[#134E4A] text-white shadow-sm'
+              : 'text-[#4A5552] hover:text-[#16211E]'
           }`}
         >
-          <span className="text-lg">{role.emoji}</span>
-          {role.label}
-        </motion.button>
+          {role.icon}
+          <span>{role.label}</span>
+        </button>
       ))}
     </div>
   );

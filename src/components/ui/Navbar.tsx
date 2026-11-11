@@ -1,31 +1,47 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { MenuIcon, XIcon, BellIcon } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { MenuIcon, XIcon, BellIcon, BookOpenIcon } from 'lucide-react';
+import { useNavigate, useLocation, Link } from 'react-router-dom';
 // @ts-ignore: no types for JS AuthContext
 import { useAuth } from '../../contexts/AuthContext';
 import { useSocket } from '../../contexts/SocketContext';
 import { Button } from './Button';
+
 interface NavbarProps {
   isLoggedIn?: boolean;
 }
-export function Navbar({
-  isLoggedIn = false
-}: NavbarProps) {
+
+export function Navbar({ isLoggedIn = false }: NavbarProps) {
   const navigate = useNavigate();
+  const location = useLocation();
   const { isAuthenticated, user, logout } = useAuth();
   const { unreadCount } = useSocket();
   const [isOpen, setIsOpen] = useState(false);
 
+  const handleSectionLink = (hash: string) => {
+    setIsOpen(false);
+    if (location.pathname !== '/') {
+      navigate(`/${hash}`);
+    } else {
+      const element = document.querySelector(hash);
+      if (element) {
+        element.scrollIntoView({ behavior: 'smooth' });
+      }
+    }
+  };
+
   const handleLogin = () => {
+    setIsOpen(false);
     navigate('/auth');
   };
 
   const handleGetStarted = () => {
+    setIsOpen(false);
     navigate('/auth');
   };
 
   const handleDashboard = () => {
+    setIsOpen(false);
     const roleRoutes = {
       admin: '/admin/dashboard',
       teacher: '/teacher/dashboard',
@@ -49,111 +65,167 @@ export function Navbar({
   };
 
   const handleLogout = () => {
+    setIsOpen(false);
     logout();
     navigate('/');
   };
-  return <nav className="bg-white shadow-md sticky top-0 z-50">
+
+  return (
+    <nav className="bg-[#F8F6F1]/95 backdrop-blur-md border-b border-[#E5E0D5] sticky top-0 z-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between items-center h-16">
-          <div className="flex items-center">
-            <motion.div whileHover={{
-            scale: 1.1
-          }} className="font-poppins font-bold text-2xl bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
-              E-Flex
-            </motion.div>
-          </div>
-          {/* Desktop Menu */}
+        <div className="flex justify-between items-center h-20">
+          {/* Brand Logo */}
+          <Link to="/" className="flex items-center gap-3 group">
+            <div className="w-10 h-10 rounded-xl bg-[#134E4A] flex items-center justify-center text-[#FAF8F5] shadow-sm group-hover:bg-[#0E3B38] transition-colors">
+              <BookOpenIcon className="w-5 h-5" />
+            </div>
+            <div className="flex flex-col">
+              <span className="font-poppins font-bold text-xl tracking-tight text-[#16211E] leading-none">
+                E-Flex<span className="text-[#C85A28]">.</span>
+              </span>
+              <span className="text-[11px] font-medium tracking-wider uppercase text-[#5C6663] mt-0.5">
+                Holiday & Term Study
+              </span>
+            </div>
+          </Link>
+
+          {/* Desktop Navigation */}
           <div className="hidden md:flex items-center space-x-8">
-            <a href="#features" className="text-gray-700 hover:text-primary transition-colors">
-              Features
-            </a>
-            <a href="#about" className="text-gray-700 hover:text-primary transition-colors">
-              About
-            </a>
-            <a href="#testimonials" className="text-gray-700 hover:text-primary transition-colors">
-              Testimonials
-            </a>
-            {isAuthenticated ? <div className="flex items-center space-x-4">
-                <motion.button
-                  whileHover={{ scale: 1.1 }}
+            <button
+              type="button"
+              onClick={() => handleSectionLink('#features')}
+              className="text-sm font-medium text-[#3B4744] hover:text-[#134E4A] transition-colors"
+            >
+              Curriculum & Tools
+            </button>
+            <Link
+              to="/about"
+              className={`text-sm font-medium transition-colors ${location.pathname === '/about'
+                  ? 'text-[#134E4A] font-semibold underline decoration-[#C85A28] decoration-2 underline-offset-8'
+                  : 'text-[#3B4744] hover:text-[#134E4A]'
+                }`}
+            >
+              Our Story
+            </Link>
+            <button
+              type="button"
+              onClick={() => handleSectionLink('#testimonials')}
+              className="text-sm font-medium text-[#3B4744] hover:text-[#134E4A] transition-colors"
+            >
+              Schools & Families
+            </button>
+
+            <div className="h-5 w-px bg-[#DCD6C8]" />
+
+            {isAuthenticated ? (
+              <div className="flex items-center space-x-3">
+                <button
                   onClick={handleDashboard}
-                  className="relative p-1"
+                  className="relative p-2 rounded-lg text-[#3B4744] hover:bg-[#EFECE4] transition-colors"
                   aria-label="View notifications in dashboard"
                 >
-                  <BellIcon className="w-6 h-6 text-gray-700" />
+                  <BellIcon className="w-5 h-5" />
                   {unreadCount > 0 && (
-                    <span className="absolute -top-1 -right-1 bg-warning text-white text-xs rounded-full min-w-[16px] h-4 px-1 flex items-center justify-center">
+                    <span className="absolute top-1 right-1 bg-[#C85A28] text-white text-[10px] font-semibold rounded-full min-w-[16px] h-4 px-1 flex items-center justify-center">
                       {unreadCount > 99 ? '99+' : unreadCount}
                     </span>
                   )}
-                </motion.button>
-                <div className="flex items-center space-x-2">
-                  <span className="text-sm text-gray-700">
-                    Welcome, {getUserDisplayName()}
-                  </span>
-                  <Button variant="primary" size="sm" onClick={handleDashboard}>
-                    Dashboard
-                  </Button>
-                </div>
+                </button>
+                <span className="text-sm font-medium text-[#3B4744]">
+                  {getUserDisplayName()}
+                </span>
+                <Button variant="primary" size="sm" onClick={handleDashboard}>
+                  Dashboard
+                </Button>
                 <Button variant="outline" size="sm" onClick={handleLogout}>
-                  Logout
+                  Sign Out
                 </Button>
-              </div> : <div className="flex items-center space-x-4">
-                <Button variant="outline" size="sm" onClick={handleLogin}>
-                  Login
-                </Button>
+              </div>
+            ) : (
+              <div className="flex items-center space-x-3">
+                <button
+                  onClick={handleLogin}
+                  className="px-4 py-2 text-sm font-semibold text-[#16211E] hover:text-[#134E4A] transition-colors"
+                >
+                  Sign In
+                </button>
                 <Button variant="primary" size="sm" onClick={handleGetStarted}>
-                  Get Started
+                  Enroll Now
                 </Button>
-              </div>}
+              </div>
+            )}
           </div>
+
           {/* Mobile Menu Button */}
           <div className="md:hidden">
-            <button onClick={() => setIsOpen(!isOpen)} className="text-gray-700">
+            <button
+              onClick={() => setIsOpen(!isOpen)}
+              className="p-2 rounded-lg text-[#16211E] hover:bg-[#EFECE4]"
+              aria-label="Toggle Menu"
+            >
               {isOpen ? <XIcon className="w-6 h-6" /> : <MenuIcon className="w-6 h-6" />}
             </button>
           </div>
         </div>
       </div>
+
       {/* Mobile Menu */}
-      {isOpen && <motion.div initial={{
-      opacity: 0,
-      y: -20
-    }} animate={{
-      opacity: 1,
-      y: 0
-    }} className="md:hidden bg-white border-t">
-          <div className="px-4 pt-2 pb-4 space-y-3">
-            <a href="#features" className="block text-gray-700 hover:text-primary py-2">
-              Features
-            </a>
-            <a href="#about" className="block text-gray-700 hover:text-primary py-2">
-              About
-            </a>
-            <a href="#testimonials" className="block text-gray-700 hover:text-primary py-2">
-              Testimonials
-            </a>
-            {isAuthenticated ? <div className="flex flex-col space-y-2">
-                <div className="flex flex-col space-y-1">
-                  <span className="text-sm text-gray-700 text-center">
-                    Welcome, {getUserDisplayName()}
+      {isOpen && (
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="md:hidden bg-[#F8F6F1] border-t border-[#E5E0D5]"
+        >
+          <div className="px-4 pt-3 pb-6 space-y-2">
+            <button
+              type="button"
+              onClick={() => handleSectionLink('#features')}
+              className="block w-full text-left text-sm font-medium text-[#3B4744] hover:text-[#134E4A] py-2.5"
+            >
+              Curriculum & Tools
+            </button>
+            <Link
+              to="/about"
+              onClick={() => setIsOpen(false)}
+              className="block text-sm font-medium text-[#3B4744] hover:text-[#134E4A] py-2.5"
+            >
+              Our Story
+            </Link>
+            <button
+              type="button"
+              onClick={() => handleSectionLink('#testimonials')}
+              className="block w-full text-left text-sm font-medium text-[#3B4744] hover:text-[#134E4A] py-2.5"
+            >
+              Schools & Families
+            </button>
+
+            <div className="pt-3 border-t border-[#E5E0D5]">
+              {isAuthenticated ? (
+                <div className="flex flex-col space-y-2">
+                  <span className="text-xs font-medium text-[#5C6663] pb-1">
+                    Signed in as {getUserDisplayName()}
                   </span>
                   <Button variant="primary" size="sm" className="w-full" onClick={handleDashboard}>
-                    Dashboard
+                    Open Dashboard
+                  </Button>
+                  <Button variant="outline" size="sm" className="w-full" onClick={handleLogout}>
+                    Sign Out
                   </Button>
                 </div>
-                <Button variant="outline" size="sm" className="w-full" onClick={handleLogout}>
-                  Logout
-                </Button>
-              </div> : <div className="flex flex-col space-y-2">
-                <Button variant="outline" size="sm" className="w-full" onClick={handleLogin}>
-                  Login
-                </Button>
-                <Button variant="primary" size="sm" className="w-full" onClick={handleGetStarted}>
-                  Get Started
-                </Button>
-              </div>}
+              ) : (
+                <div className="flex flex-col space-y-2">
+                  <Button variant="outline" size="sm" className="w-full" onClick={handleLogin}>
+                    Sign In
+                  </Button>
+                  <Button variant="primary" size="sm" className="w-full" onClick={handleGetStarted}>
+                    Enroll Now
+                  </Button>
+                </div>
+              )}
+            </div>
           </div>
-        </motion.div>}
-    </nav>;
+        </motion.div>
+      )}
+    </nav>
+  );
 }

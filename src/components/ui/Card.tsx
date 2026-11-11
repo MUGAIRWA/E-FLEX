@@ -10,10 +10,19 @@ export function Card({
   className = '',
   hover = true
 }: CardProps) {
-  return <motion.div whileHover={hover ? {
-    y: -5,
-    shadow: '0 20px 40px rgba(0,0,0,0.1)'
-  } : {}} className={`bg-white rounded-2xl shadow-md p-6 ${className}`}>
+  return (
+    <motion.div
+      whileHover={
+        hover
+          ? {
+              y: -2
+            }
+          : {}
+      }
+      transition={{ duration: 0.2 }}
+      className={`bg-white rounded-2xl border border-[#E6E1D6] shadow-[0_2px_10px_-3px_rgba(22,33,30,0.05)] p-6 ${className}`}
+    >
       {children}
-    </motion.div>;
+    </motion.div>
+  );
 }

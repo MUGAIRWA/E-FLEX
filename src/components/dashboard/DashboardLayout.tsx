@@ -218,7 +218,7 @@ export function DashboardLayout({
   return (
     <div className="min-h-screen w-full bg-background">
       {/* Top Navigation Bar */}
-      <nav className="bg-white shadow-md sticky top-0 z-50">
+      <nav className="bg-[#F8F6F1]/95 backdrop-blur-md border-b border-[#E5E0D5] sticky top-0 z-50">
         <div className="px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center space-x-4">
@@ -227,7 +227,7 @@ export function DashboardLayout({
                   setIsSidebarOpen(!isSidebarOpen);
                   setIsMobileSidebarOpen(!isMobileSidebarOpen);
                 }}
-                className="text-gray-700 hover:text-primary transition-colors"
+                className="text-[#16211E] hover:text-primary transition-colors"
                 aria-label="Toggle sidebar"
               >
                 {isMobileSidebarOpen ? (
@@ -238,9 +238,9 @@ export function DashboardLayout({
               </button>
               <button
                 onClick={() => navigate('/')}
-                className="font-poppins font-bold text-2xl bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent"
+                className="font-poppins font-bold text-2xl text-[#16211E] tracking-tight"
               >
-                E-Flex
+                E-Flex<span className="text-[#C85A28]">.</span>
               </button>
             </div>
             <div className="flex items-center space-x-4">
@@ -457,8 +457,8 @@ export function DashboardLayout({
                       }}
                       className={`w-full flex items-center space-x-3 px-4 py-3 rounded-xl transition-all ${
                         activeTab === tab.id
-                          ? 'bg-gradient-to-r from-primary to-accent text-white shadow-lg'
-                          : 'text-gray-700 hover:bg-gray-100'
+                          ? 'bg-[#134E4A] text-white shadow-sm'
+                          : 'text-[#3B4744] hover:bg-[#EFECE4]'
                       }`}
                     >
                       {tab.icon}

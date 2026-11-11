@@ -4,6 +4,7 @@ import { AuthProvider } from './contexts/AuthContext.tsx';
 import { SocketProvider } from './contexts/SocketContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import { LandingPage } from './pages/Home/LandingPage';
+import { AboutPage } from './pages/About/AboutPage';
 import { StudentDashboard } from './pages/Dashboard/StudentDashboard';
 import { TeacherDashboard } from './pages/Dashboard/TeacherDashboard';
 import { ParentDashboard } from './pages/Dashboard/ParentDashboard';
@@ -17,6 +18,7 @@ export function App() {
         <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
           <Routes>
             <Route path="/" element={<LandingPage />} />
+            <Route path="/about" element={<AboutPage />} />
             <Route path="/auth" element={<AuthPage />} />
             <Route path="/auth/admin" element={<AuthPage />} />
             <Route path="/auth/teacher" element={<AuthPage />} />
