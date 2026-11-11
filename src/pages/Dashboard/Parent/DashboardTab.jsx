@@ -81,10 +81,10 @@ export function DashboardTab() {
   }, [socket, loadParentData]);
 
   const activeChild = children[0] || {
-    name: 'John Doe',
-    classLabel: 'Form 3 Blue',
-    admissionNumber: 'ADM-2026-001',
-    avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=JohnDoe'
+    name: 'No Linked Student Yet',
+    classLabel: 'Unassigned Stream',
+    admissionNumber: '',
+    avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Student'
   };
 
   const pendingAssignments = assignments.filter(

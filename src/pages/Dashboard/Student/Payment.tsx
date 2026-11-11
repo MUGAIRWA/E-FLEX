@@ -22,13 +22,12 @@ export function Payment(): JSX.Element {
         const response = await subjectAPI.getSubjects();
         const subjectsData = Array.isArray(response.data) ? response.data : [];
         const formattedSubjects: SubjectItem[] = subjectsData
-          .slice(0, 4)
+          .slice(0, 6)
           .map((subject: any, index: number) => ({
             id: index + 1,
             name: subject.name,
-            status: index < 2 ? 'paid' : 'unpaid',
-            amount: 250,
-            date: index < 2 ? 'Dec 1, 2024' : undefined
+            status: 'unpaid',
+            amount: 250
           }));
         setSubjects(formattedSubjects);
       } catch (error) {
@@ -114,24 +113,30 @@ export function Payment(): JSX.Element {
         <h2 className="font-poppins text-lg font-bold text-[#16211E] mb-4">
           Payment History
         </h2>
-        <div className="divide-y divide-[#E5E0D5]">
-          {subjects
-            .filter((s: SubjectItem) => s.status === 'paid')
-            .map((subject: SubjectItem) => (
-              <div
-                key={subject.id}
-                className="flex items-center justify-between py-3.5 first:pt-0 last:pb-0"
-              >
-                <div>
-                  <p className="font-semibold text-[#16211E]">{subject.name}</p>
-                  <p className="text-sm text-[#5C6663]">{subject.date}</p>
+        {subjects.filter((s: SubjectItem) => s.status === 'paid').length === 0 ? (
+          <p className="text-sm text-[#5C6663]">
+            No payment transactions recorded yet.
+          </p>
+        ) : (
+          <div className="divide-y divide-[#E5E0D5]">
+            {subjects
+              .filter((s: SubjectItem) => s.status === 'paid')
+              .map((subject: SubjectItem) => (
+                <div
+                  key={subject.id}
+                  className="flex items-center justify-between py-3.5 first:pt-0 last:pb-0"
+                >
+                  <div>
+                    <p className="font-semibold text-[#16211E]">{subject.name}</p>
+                    <p className="text-sm text-[#5C6663]">{subject.date}</p>
+                  </div>
+                  <span className="text-lg font-bold text-[#134E4A]">
+                    KSh {subject.amount}
+                  </span>
                 </div>
-                <span className="text-lg font-bold text-[#134E4A]">
-                  KSh {subject.amount}
-                </span>
-              </div>
-            ))}
-        </div>
+              ))}
+          </div>
+        )}
       </Card>
     </div>
   );

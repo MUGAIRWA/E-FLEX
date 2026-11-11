@@ -2,7 +2,6 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import {
   TrophyIcon,
-  TrendingUpIcon,
   CalendarIcon,
   StarIcon,
   FileTextIcon,
@@ -17,8 +16,6 @@ import { ProgressBar } from '../../../components/dashboard/ProgressBar';
 import { useAuth } from '../../../contexts/AuthContext';
 import { useSocket } from '../../../contexts/SocketContext';
 import { courseAPI, assignmentAPI, examAPI } from '../../../services/api';
-// @ts-ignore: no types for JS constants module
-import { SUBJECTS } from '../../../constants/subjects';
 
 export function OverviewTab() {
   const { user } = useAuth();
@@ -30,6 +27,8 @@ export function OverviewTab() {
   const [submittedAssignmentsCount, setSubmittedAssignmentsCount] = useState(0);
   const [quizzesCount, setQuizzesCount] = useState(0);
   const [completedQuizzesCount, setCompletedQuizzesCount] = useState(0);
+  const [averageScoreLabel, setAverageScoreLabel] = useState('—');
+  const [enrolledSubjects, setEnrolledSubjects] = useState<any[]>([]);
   const [recentStreamItems, setRecentStreamItems] = useState<any[]>([]);
 
   const formatClassLabel = (cls?: string, stream?: string) => {
@@ -44,13 +43,36 @@ export function OverviewTab() {
 
   const loadOverviewData = useCallback(async () => {
     try {
-      const [matsRes, assignRes, examsRes] = await Promise.allSettled([
-        courseAPI.getMaterials(),
-        assignmentAPI.getAssignments({ limit: 25 }),
-        examAPI.getExams({ limit: 25 })
-      ]);
+      const [coursesRes, matsRes, assignRes, examsRes] =
+        await Promise.allSettled([
+          courseAPI.getCourses({ limit: 50 }),
+          courseAPI.getMaterials(),
+          assignmentAPI.getAssignments({ limit: 25 }),
+          examAPI.getExams({ limit: 25 })
+        ]);
 
       const feed: any[] = [];
+      const scoreValues: number[] = [];
+
+      if (coursesRes.status === 'fulfilled') {
+        const courses = (coursesRes.value.data as any)?.courses || [];
+        const colors = ['bg-[#134E4A]', 'bg-[#C85A28]', 'bg-[#1E7A50]'];
+        setEnrolledSubjects(
+          courses.map((c: any, idx: number) => {
+            const matsLen = Array.isArray(c.materials) ? c.materials.length : 0;
+            return {
+              subject: c.subject || c.title,
+              progress: matsLen > 0 ? 100 : 0,
+              totalModules: matsLen,
+              completedModules: matsLen,
+              nextClass: c.teacher
+                ? `Tr. ${c.teacher.firstName} ${c.teacher.lastName}`
+                : 'Active Stream Course',
+              color: colors[idx % colors.length]
+            };
+          })
+        );
+      }
 
       if (matsRes.status === 'fulfilled') {
         const mats = matsRes.value.data?.materials || [];
@@ -79,6 +101,12 @@ export function OverviewTab() {
         setSubmittedAssignmentsCount(submitted);
 
         assigns.forEach((a: any) => {
+          const sub = a.submissions?.[0];
+          if (sub && sub.marks !== null && sub.marks !== undefined) {
+            scoreValues.push(
+              Math.round((Number(sub.marks) / Number(a.totalMarks || 100)) * 100)
+            );
+          }
           feed.push({
             id: a.id || a._id,
             kind: 'Assignment',
@@ -100,6 +128,10 @@ export function OverviewTab() {
           exams.filter((e: any) => e.results && e.results.length > 0).length
         );
         exams.forEach((ex: any) => {
+          const res = ex.results?.[0];
+          if (res && res.percentage !== null && res.percentage !== undefined) {
+            scoreValues.push(Math.round(Number(res.percentage)));
+          }
           feed.push({
             id: ex.id || ex._id,
             kind: 'Quiz',
@@ -111,6 +143,15 @@ export function OverviewTab() {
             date: ex.createdAt
           });
         });
+      }
+
+      if (scoreValues.length > 0) {
+        const avg = Math.round(
+          scoreValues.reduce((s, n) => s + n, 0) / scoreValues.length
+        );
+        setAverageScoreLabel(`${avg}%`);
+      } else {
+        setAverageScoreLabel('—');
       }
 
       feed.sort(
@@ -138,32 +179,11 @@ export function OverviewTab() {
     };
   }, [socket, loadOverviewData]);
 
-  const subjects = [
-    {
-      subject: SUBJECTS[0] as string, // Mathematics
-      progress: 75,
-      totalModules: 12,
-      completedModules: 9,
-      nextClass: 'Monday, 2:00 PM',
-      color: 'bg-[#134E4A]'
-    },
-    {
-      subject: SUBJECTS[1] as string, // English
-      progress: 60,
-      totalModules: 10,
-      completedModules: 6,
-      nextClass: 'Tuesday, 10:00 AM',
-      color: 'bg-[#C85A28]'
-    },
-    {
-      subject: SUBJECTS[2] as string, // Kiswahili
-      progress: 85,
-      totalModules: 8,
-      completedModules: 7,
-      nextClass: 'Wednesday, 1:00 PM',
-      color: 'bg-[#1E7A50]'
-    }
-  ];
+  const totalItems =
+    pendingAssignmentsCount + submittedAssignmentsCount + quizzesCount;
+  const completedItems = submittedAssignmentsCount + completedQuizzesCount;
+  const overallCompletionPct =
+    totalItems > 0 ? Math.round((completedItems / totalItems) * 100) : 0;
 
   const stats = [
     {
@@ -186,7 +206,7 @@ export function OverviewTab() {
     },
     {
       label: 'Average Score',
-      value: '87%',
+      value: averageScoreLabel,
       icon: <StarIcon className="w-6 h-6" />,
       color: 'bg-[#1E7A50]'
     }
@@ -311,18 +331,26 @@ export function OverviewTab() {
         <h2 className="font-poppins font-bold text-2xl mb-6 text-[#16211E]">
           Your Subjects
         </h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {subjects.map((subject, index) => (
-            <motion.div
-              key={index}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.5 + index * 0.1 }}
-            >
-              <SubjectCard {...subject} />
-            </motion.div>
-          ))}
-        </div>
+        {enrolledSubjects.length === 0 ? (
+          <Card>
+            <p className="text-sm text-[#5C6663] py-4">
+              No subjects published for {studentStreamLabel || 'your stream'} yet. Once your teachers publish courses or notes for your stream, they will appear here automatically.
+            </p>
+          </Card>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {enrolledSubjects.map((subject, index) => (
+              <motion.div
+                key={index}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.5 + index * 0.1 }}
+              >
+                <SubjectCard {...subject} />
+              </motion.div>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Overall Progress */}
@@ -337,8 +365,8 @@ export function OverviewTab() {
           </h3>
           <div className="space-y-4">
             <ProgressBar
-              progress={73}
-              label="Total Course Completion"
+              progress={overallCompletionPct}
+              label="Total Coursework Completion"
               color="bg-[#134E4A]"
             />
             <div className="grid grid-cols-2 gap-4 mt-6">
