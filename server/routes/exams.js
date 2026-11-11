@@ -18,7 +18,7 @@ router.post('/', authorize('teacher'), createExam);
 router.post('/upload', authorize('teacher'), examUpload.array('files', 5), createExamWithFile);
 router.get('/', getExams);
 router.get('/:id', getExam);
-router.post('/:id/submit', authorize('teacher'), submitExamResult);
+router.post('/:id/submit', authorize('teacher', 'student', 'admin'), submitExamResult);
 router.put('/:id', authorize('teacher'), updateExam);
 router.delete('/:id', authorize('teacher'), deleteExam);
 

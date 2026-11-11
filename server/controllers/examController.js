@@ -4,7 +4,57 @@ const { asyncHandler, getPagination, paginated, filesToAttachments, percentage, 
 const { notifyUsers } = require('../utils/notify');
 const { isEnrolled } = require('../utils/permissions');
 const { examUpload } = require('../middleware/upload');
-const { ensureTeacherCourse } = require('../services/courseService');
+const {
+  ensureTeacherCourse,
+  getRecipientsForCourse,
+  buildStudentCourseAccessWhere,
+  buildParentCourseAccessWhere,
+  getParentLinkedStudents,
+  normalizeClassKey
+} = require('../services/courseService');
+
+const getStudentParentIds = async (student) => {
+  if (!student) return [];
+  const parents = await prisma.user.findMany({
+    where: {
+      role: 'parent',
+      isActive: true,
+      OR: [
+        { children: { some: { id: student.id } } },
+        { linkedParents: { some: { id: student.id } } },
+        ...(student.email
+          ? [{ childEmail: { equals: student.email, mode: 'insensitive' } }]
+          : [])
+      ]
+    },
+    select: { id: true }
+  });
+  return [...new Set(parents.map((p) => p.id))];
+};
+
+const canStudentAccessCourse = async (student, courseId) => {
+  if (await isEnrolled(courseId, student.id)) return true;
+  const course = await prisma.course.findUnique({ where: { id: courseId } });
+  if (!course) return false;
+  if (
+    course.class &&
+    student.class &&
+    normalizeClassKey(course.class) === normalizeClassKey(student.class)
+  ) {
+    if (
+      !course.stream ||
+      !student.stream ||
+      course.stream.trim().toLowerCase() === student.stream.trim().toLowerCase()
+    ) {
+      await prisma.course.update({
+        where: { id: course.id },
+        data: { students: { connect: { id: student.id } } }
+      });
+      return true;
+    }
+  }
+  return false;
+};
 
 const parseQuestions = (questions) => {
   if (!questions) return [];
@@ -84,18 +134,31 @@ const createExamRecord = async (req, res, { attachments = [], notificationTitle,
     }
   });
 
-  await notifyUsers(
-    req.app.get('io'),
-    courseDoc.students.map((s) => s.id),
-    {
-      title: notificationTitle,
-      message: `New ${verb} "${title}" has been ${verb === 'quiz' ? 'uploaded' : 'scheduled'} in ${courseDoc.title}`,
-      type: 'warning',
-      link: `/student/exams/${exam.id}`
-    }
-  );
+  const { studentIds, parentIds, classStreamLabel } = await getRecipientsForCourse(courseDoc);
+  const io = req.app.get('io');
 
-  return res.status(201).json(exam);
+  await notifyUsers(io, studentIds, {
+    title: `${notificationTitle} (${courseDoc.subject}): ${title}`,
+    message: `${req.user.firstName} ${req.user.lastName} posted a ${verb} "${title}" for ${classStreamLabel}.`,
+    type: 'warning',
+    link: 'modules'
+  });
+
+  if (parentIds.length > 0) {
+    await notifyUsers(io, parentIds, {
+      title: `Quiz / Assessment Alert (${courseDoc.subject}): ${title}`,
+      message: `Teacher ${req.user.firstName} ${req.user.lastName} posted a ${courseDoc.subject} ${verb} "${title}" for ${classStreamLabel}.`,
+      type: 'info',
+      link: 'dashboard'
+    });
+  }
+
+  return res.status(201).json({
+    ...exam,
+    notifiedStudents: studentIds.length,
+    notifiedParents: parentIds.length,
+    classStreamLabel
+  });
 };
 
 // @desc    Create exam
@@ -121,24 +184,41 @@ const createExamWithFile = asyncHandler((req, res) =>
 // @access  Private
 const getExams = asyncHandler(async (req, res) => {
   const pg = getPagination(req.query);
-  const { course } = req.query;
+  const { course, subject } = req.query;
 
-  const where = {};
-  if (req.user.role === 'teacher') where.teacherId = req.user.id;
-  else if (req.user.role === 'student') where.course = { students: { some: { id: req.user.id } } };
-  else if (req.user.role === 'parent') {
-    where.course = { students: { some: { linkedParents: { some: { id: req.user.id } } } } };
+  const filters = [];
+  let parentChildren = [];
+  if (req.user.role === 'teacher') {
+    filters.push({ teacherId: req.user.id });
+  } else if (req.user.role === 'student') {
+    filters.push({ course: buildStudentCourseAccessWhere(req.user) });
+  } else if (req.user.role === 'parent') {
+    parentChildren = await getParentLinkedStudents(req.user);
+    filters.push({ course: await buildParentCourseAccessWhere(req.user) });
   }
-  if (course) where.courseId = course;
+  if (course) filters.push({ courseId: course });
+  if (subject) {
+    filters.push({ course: { subject: { equals: String(subject), mode: 'insensitive' } } });
+  }
+
+  const where = filters.length ? { AND: filters } : {};
+
+  let resultsWhere = undefined;
+  if (req.user.role === 'student') {
+    resultsWhere = { studentId: req.user.id };
+  } else if (req.user.role === 'parent') {
+    resultsWhere = { studentId: { in: parentChildren.map((c) => c.id) } };
+  }
 
   const [exams, total] = await prisma.$transaction([
     prisma.exam.findMany({
       where,
       include: {
-        course: { select: { id: true, title: true, subject: true } },
-        teacher: { select: userBrief }
+        course: { select: { id: true, title: true, subject: true, class: true, stream: true } },
+        teacher: { select: userBrief },
+        results: { where: resultsWhere, include: { student: { select: studentBrief } } }
       },
-      orderBy: { examDate: 'desc' },
+      orderBy: { createdAt: 'desc' },
       skip: pg.skip,
       take: pg.limit
     }),
@@ -156,7 +236,7 @@ const getExam = asyncHandler(async (req, res) => {
   const exam = await prisma.exam.findUnique({
     where: { id: req.params.id },
     include: {
-      course: { select: { id: true, title: true, subject: true, teacherId: true } },
+      course: { select: { id: true, title: true, subject: true, class: true, stream: true, teacherId: true } },
       teacher: { select: userBrief },
       results: { include: { student: { select: studentBrief } } }
     }
@@ -167,76 +247,118 @@ const getExam = asyncHandler(async (req, res) => {
   }
 
   if (req.user.role === 'student') {
-    if (!(await isEnrolled(exam.courseId, req.user.id))) {
+    if (!(await canStudentAccessCourse(req.user, exam.courseId))) {
       return res.status(403).json({ message: 'Not authorized to access this exam' });
     }
-    // Students only see their own result and no answer key
     return res.json(stripAnswers({ ...exam, results: exam.results.filter((r) => r.studentId === req.user.id) }));
   }
   if (req.user.role === 'teacher' && exam.teacherId !== req.user.id) {
     return res.status(403).json({ message: 'Not authorized to access this exam' });
   }
   if (req.user.role === 'parent') {
-    return res.status(403).json({ message: 'Not authorized to access this exam' });
+    const children = await getParentLinkedStudents(req.user);
+    const childIds = new Set(children.map((c) => c.id));
+    return res.json(stripAnswers({ ...exam, results: exam.results.filter((r) => childIds.has(r.studentId)) }));
   }
 
   res.json(exam);
 });
 
-// @desc    Submit exam result
+// @desc    Submit exam/quiz result (by student taking quiz OR teacher recording marks)
 // @route   POST /api/exams/:id/submit
-// @access  Private/Teacher
+// @access  Private (Student or Teacher)
 const submitExamResult = asyncHandler(async (req, res) => {
-  const exam = await prisma.exam.findUnique({ where: { id: req.params.id } });
+  const exam = await prisma.exam.findUnique({
+    where: { id: req.params.id },
+    include: { course: { select: { id: true, title: true, subject: true } } }
+  });
 
   if (!exam) {
     return res.status(404).json({ message: 'Exam not found' });
   }
-  if (exam.teacherId !== req.user.id) {
+
+  const isStudentSubmission = req.user.role === 'student';
+  const targetStudentId = isStudentSubmission ? req.user.id : req.body.studentId;
+
+  if (!isStudentSubmission && exam.teacherId !== req.user.id && req.user.role !== 'admin') {
     return res.status(403).json({ message: 'Not authorized to submit results for this exam' });
   }
 
-  const { studentId, marks, answers, feedback } = req.body;
-  const numericMarks = Number(marks);
-
-  if (!studentId || Number.isNaN(numericMarks) || numericMarks < 0 || numericMarks > exam.totalMarks) {
-    return res.status(400).json({ message: `studentId and marks (0-${exam.totalMarks}) are required` });
-  }
-  if (!(await isEnrolled(exam.courseId, studentId))) {
+  if (isStudentSubmission) {
+    if (!(await canStudentAccessCourse(req.user, exam.courseId))) {
+      return res.status(403).json({ message: 'Not authorized to take this quiz' });
+    }
+  } else if (!targetStudentId || !(await isEnrolled(exam.courseId, targetStudentId))) {
     return res.status(400).json({ message: 'Student is not enrolled in this course' });
   }
 
   const existing = await prisma.examResult.findUnique({
-    where: { examId_studentId: { examId: exam.id, studentId } }
+    where: { examId_studentId: { examId: exam.id, studentId: targetStudentId } }
   });
   if (existing) {
-    return res.status(400).json({ message: 'Result already submitted for this student' });
+    return res.status(400).json({ message: 'Quiz/Exam result already submitted' });
+  }
+
+  const { marks, answers, feedback } = req.body;
+  const examQuestions = Array.isArray(exam.questions) ? exam.questions : [];
+  let numericMarks = Number(marks);
+  let gradedAnswers = Array.isArray(answers) ? answers : [];
+
+  // Auto-grade student quiz answers if questions are defined on the exam
+  if (isStudentSubmission && examQuestions.length > 0) {
+    let earned = 0;
+    gradedAnswers = examQuestions.map((q, idx) => {
+      const submittedObj = Array.isArray(answers)
+        ? answers.find((a) => a.questionIndex === idx) || answers[idx]
+        : null;
+      const studentAnswer =
+        typeof submittedObj === 'string'
+          ? submittedObj
+          : submittedObj?.answer || '';
+      const isCorrect =
+        q.correctAnswer &&
+        String(studentAnswer).trim().toLowerCase() ===
+          String(q.correctAnswer).trim().toLowerCase();
+      const qMarks = isCorrect ? Number(q.marks) || 5 : 0;
+      earned += qMarks;
+      return {
+        questionIndex: idx,
+        answer: studentAnswer,
+        isCorrect: Boolean(isCorrect),
+        marks: qMarks
+      };
+    });
+    numericMarks = earned;
+  } else if (Number.isNaN(numericMarks)) {
+    numericMarks = exam.totalMarks;
+  }
+
+  if (numericMarks < 0 || numericMarks > exam.totalMarks) {
+    return res.status(400).json({ message: `marks must be between 0 and ${exam.totalMarks}` });
   }
 
   const pct = percentage(numericMarks, exam.totalMarks);
   const letter = letterGrade(pct);
   const now = new Date();
 
-  // FIX: previously pushed into a non-existent `grade.grades` array. Now the
-  // result and the gradebook entry are written together in one transaction.
-  await prisma.$transaction([
+  const [resultRecord] = await prisma.$transaction([
     prisma.examResult.create({
       data: {
         examId: exam.id,
-        studentId,
-        answers: Array.isArray(answers) ? answers : [],
+        studentId: targetStudentId,
+        answers: gradedAnswers,
         marks: numericMarks,
         percentage: pct,
         grade: letter,
-        feedback,
+        feedback: feedback || (isStudentSubmission ? 'Auto-graded quiz submission' : undefined),
         submittedAt: now,
         gradedAt: now,
-        gradedById: req.user.id
+        gradedById: exam.teacherId
       }
     }),
     prisma.grade.create({
       data: {
-        studentId,
+        studentId: targetStudentId,
         courseId: exam.courseId,
         examId: exam.id,
         type: exam.type === 'quiz' ? 'quiz' : 'exam',
@@ -245,20 +367,47 @@ const submitExamResult = asyncHandler(async (req, res) => {
         totalMarks: exam.totalMarks,
         percentage: pct,
         grade: letter,
-        feedback,
-        gradedById: req.user.id
+        feedback: feedback || (isStudentSubmission ? 'Auto-graded quiz submission' : undefined),
+        gradedById: exam.teacherId
       }
     })
   ]);
 
-  await notifyUsers(req.app.get('io'), [studentId], {
-    title: 'Exam Result Available',
-    message: `Your result for "${exam.title}" is now available`,
-    type: 'success',
-    link: `/student/exams/${exam.id}`
-  });
+  const io = req.app.get('io');
+  const studentUser = isStudentSubmission
+    ? req.user
+    : await prisma.user.findUnique({ where: { id: targetStudentId } });
 
-  res.json({ message: 'Exam result submitted successfully' });
+  if (isStudentSubmission) {
+    await notifyUsers(io, [exam.teacherId], {
+      title: `Quiz Completed: ${exam.title}`,
+      message: `${req.user.firstName} ${req.user.lastName} completed "${exam.title}" and scored ${numericMarks}/${exam.totalMarks} (${pct}%).`,
+      type: 'info',
+      link: 'progress'
+    });
+  } else {
+    await notifyUsers(io, [targetStudentId], {
+      title: 'Exam Result Available',
+      message: `Your result for "${exam.title}" is now available: ${numericMarks}/${exam.totalMarks} (${letter}).`,
+      type: 'success',
+      link: 'modules'
+    });
+  }
+
+  const parentIds = await getStudentParentIds(studentUser);
+  if (parentIds.length > 0 && studentUser) {
+    await notifyUsers(io, parentIds, {
+      title: `Quiz Score Alert (${exam.course?.subject || 'Quiz'}): ${exam.title}`,
+      message: `${studentUser.firstName} ${studentUser.lastName} scored ${numericMarks}/${exam.totalMarks} (${pct}% — ${letter}) on "${exam.title}".`,
+      type: 'success',
+      link: 'dashboard'
+    });
+  }
+
+  res.json({
+    message: 'Quiz/Exam result submitted successfully',
+    result: resultRecord
+  });
 });
 
 // @desc    Update exam

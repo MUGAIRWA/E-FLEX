@@ -31,32 +31,59 @@ export function ContentUploadTab() {
   const [selectedContentType, setSelectedContentType] = useState<string>('notes');
 
   const availableSubjects: string[] =
-    user?.subjects && user.subjects.length > 0 ? user.subjects : SUBJECTS;
+    user?.subjects && user.subjects.length > 0
+      ? Array.from(new Set([...user.subjects, ...(SUBJECTS || [])]))
+      : SUBJECTS;
 
-  const availableClasses: { label: string; className: string; stream: string }[] =
+  const teacherClasses: { label: string; className: string; stream: string }[] =
     user?.classesTaught && user.classesTaught.length > 0
       ? user.classesTaught.map((c: any, idx: number) => {
           if (typeof c === 'string') {
-            const str = user?.streamsTaught?.[idx] || '';
+            const str = user?.streamsTaught?.[idx] || 'Blue';
+            const pretty = c.replace(/^form(\d)$/i, 'Form $1');
             return {
-              label: `${c} ${str}`.trim(),
-              className: c,
+              label: `${pretty} ${str} (My Stream)`.trim(),
+              className: c.toLowerCase().replace(/\s+/g, ''),
               stream: str
             };
           }
+          const cls = (c.class || 'form3').toLowerCase().replace(/\s+/g, '');
+          const pretty = cls.replace(/^form(\d)$/i, 'Form $1');
+          const str = c.stream || 'Blue';
           return {
-            label: `${c.class} ${c.stream || ''}`.trim(),
-            className: c.class,
-            stream: c.stream || ''
-          };
-        })
-      : ['form1', 'form2', 'form3', 'form4'].flatMap((cls) =>
-          (STREAMS || ['Blue', 'Green']).slice(0, 2).map((str: string) => ({
-            label: `${cls} ${str}`,
+            label: `${pretty} ${str} (My Stream)`.trim(),
             className: cls,
             stream: str
-          }))
-        );
+          };
+        })
+      : [];
+
+  const allSchoolClassStreams: { label: string; className: string; stream: string }[] =
+    [
+      { code: 'form1', name: 'Form 1' },
+      { code: 'form2', name: 'Form 2' },
+      { code: 'form3', name: 'Form 3' },
+      { code: 'form4', name: 'Form 4' }
+    ].flatMap((cls) =>
+      (STREAMS || ['Blue', 'Green', 'Yellow', 'Red', 'White']).map((str: string) => ({
+        label: `${cls.name} ${str}`,
+        className: cls.code,
+        stream: str
+      }))
+    );
+
+  // Put teacher's assigned streams at the top, followed by all other class streams
+  const availableClasses: { label: string; className: string; stream: string }[] = [
+    ...teacherClasses,
+    ...allSchoolClassStreams.filter(
+      (item) =>
+        !teacherClasses.some(
+          (tc) =>
+            tc.className.toLowerCase() === item.className.toLowerCase() &&
+            tc.stream.toLowerCase() === item.stream.toLowerCase()
+        )
+    )
+  ];
 
   const [title, setTitle] = useState('');
   const [subject, setSubject] = useState(availableSubjects[0] || 'Mathematics');
@@ -80,6 +107,7 @@ export function ContentUploadTab() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [showSuccess, setShowSuccess] = useState(false);
+  const [successDetails, setSuccessDetails] = useState('');
   const [recentUploads, setRecentUploads] = useState<any[]>([]);
   const [loadingUploads, setLoadingUploads] = useState(true);
   const [previewItem, setPreviewItem] = useState<any | null>(null);
@@ -89,25 +117,25 @@ export function ContentUploadTab() {
       id: 'notes',
       label: 'Notes',
       icon: <FileTextIcon className="w-6 h-6" />,
-      color: 'from-primary to-blue-400'
+      color: 'bg-[#134E4A]'
     },
     {
       id: 'video',
       label: 'Video',
       icon: <VideoIcon className="w-6 h-6" />,
-      color: 'from-accent to-purple-400'
+      color: 'bg-[#C85A28]'
     },
     {
       id: 'assignment',
       label: 'Assignment',
       icon: <FileIcon className="w-6 h-6" />,
-      color: 'from-warning to-red-400'
+      color: 'bg-[#134E4A]'
     },
     {
       id: 'quiz',
       label: 'Quiz',
       icon: <ClipboardListIcon className="w-6 h-6" />,
-      color: 'from-success to-green-400'
+      color: 'bg-[#1E7A50]'
     }
   ];
 
@@ -266,6 +294,7 @@ export function ContentUploadTab() {
     setError('');
 
     try {
+      let responseData: any = null;
       if (selectedContentType === 'notes' || selectedContentType === 'video') {
         const formData = new FormData();
         formData.append('title', title.trim());
@@ -281,7 +310,8 @@ export function ContentUploadTab() {
           formData.append('file', uploadedFile);
         }
 
-        await courseAPI.uploadMaterial(formData);
+        const res = await courseAPI.uploadMaterial(formData);
+        responseData = res.data;
       } else if (selectedContentType === 'assignment') {
         if (!dueDate) {
           setError('Please select a due date for the assignment');
@@ -301,7 +331,8 @@ export function ContentUploadTab() {
           formData.append('attachments', uploadedFile);
         }
 
-        await assignmentAPI.createAssignment(formData);
+        const res = await assignmentAPI.createAssignment(formData);
+        responseData = res.data;
       } else if (selectedContentType === 'quiz') {
         const validQuestions = questions
           .filter((q) => q.question.trim())
@@ -337,9 +368,10 @@ export function ContentUploadTab() {
             formData.append('questions', JSON.stringify(validQuestions));
           }
           formData.append('files', uploadedFile);
-          await examAPI.createExamWithFile(formData);
+          const res = await examAPI.createExamWithFile(formData);
+          responseData = res.data;
         } else {
-          await examAPI.createExam({
+          const res = await examAPI.createExam({
             title: title.trim(),
             description: description.trim(),
             instructions: description.trim(),
@@ -353,15 +385,24 @@ export function ContentUploadTab() {
               dueDate || new Date(Date.now() + 7 * 86400000).toISOString(),
             questions: validQuestions
           });
+          responseData = res.data;
         }
       }
 
+      const streamLabel =
+        responseData?.classStreamLabel ||
+        `${chosenClass.className} ${chosenClass.stream}`.trim();
+      const sCount = responseData?.notifiedStudents ?? 0;
+      const pCount = responseData?.notifiedParents ?? 0;
+      setSuccessDetails(
+        `Sent to ${streamLabel} (${sCount} student${sCount === 1 ? '' : 's'} & ${pCount} parent${pCount === 1 ? '' : 's'} notified)`
+      );
       setShowSuccess(true);
       resetForm();
       fetchRecentUploads();
       setTimeout(() => {
         setShowSuccess(false);
-      }, 3000);
+      }, 4500);
     } catch (err: any) {
       setError(
         err.response?.data?.message ||
@@ -412,8 +453,8 @@ export function ContentUploadTab() {
             }}
             className={`p-6 rounded-2xl transition-all ${
               selectedContentType === type.id
-                ? 'bg-gradient-to-r ' + type.color + ' text-white shadow-xl'
-                : 'bg-white border-2 border-gray-200 text-gray-700 hover:border-primary'
+                ? `${type.color} text-white shadow-md`
+                : 'bg-white border border-[#E5E0D5] text-[#3B4744] hover:border-[#134E4A]'
             }`}
           >
             <div className="flex flex-col items-center space-y-3">
@@ -735,12 +776,15 @@ export function ContentUploadTab() {
         <motion.div
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="fixed top-20 right-4 bg-success text-white px-6 py-4 rounded-xl shadow-xl flex items-center space-x-3 z-50"
+          className="fixed top-20 right-4 bg-[#1E7A50] text-white px-6 py-4 rounded-xl shadow-xl flex items-center space-x-3 z-50"
         >
-          <CheckCircleIcon className="w-6 h-6" />
-          <span className="font-semibold">
-            Content published & students notified!
-          </span>
+          <CheckCircleIcon className="w-6 h-6 flex-shrink-0" />
+          <div>
+            <p className="font-semibold">Content published!</p>
+            {successDetails && (
+              <p className="text-xs text-[#E9F5EE] mt-0.5">{successDetails}</p>
+            )}
+          </div>
         </motion.div>
       )}
 

@@ -2,6 +2,7 @@ const { prisma } = require('../config/db');
 const { userPublic, userWithEmail } = require('../utils/selects');
 const { asyncHandler, pickDefined } = require('../utils/helpers');
 const { hashPassword, matchPassword, normalizeEmail, emailTaken, validatePassword } = require('../services/userService');
+const { getParentLinkedStudents, formatClassStream } = require('../services/courseService');
 
 // @desc    Get parent profile
 // @route   GET /api/parent/profile
@@ -84,41 +85,26 @@ const changeParentPassword = asyncHandler(async (req, res) => {
 });
 
 // @desc    Get linked students
-// @route   GET /api/parent/students
+// @route   GET /api/parent/students & GET /api/parent/children
 // @access  Private (Parent only)
 const getLinkedStudents = asyncHandler(async (req, res) => {
-  const students = await prisma.user.findMany({
-    where: {
-      role: 'student',
-      OR: [
-        { linkedParents: { some: { id: req.user.id } } },
-        { children: { some: { id: req.user.id } } }
-      ]
-    },
-    select: {
-      id: true,
-      firstName: true,
-      lastName: true,
-      email: true,
-      admissionNumber: true,
-      class: true,
-      stream: true,
-      profileImage: true
-    }
-  });
+  const students = await getParentLinkedStudents(req.user);
 
   const studentsWithProgress = students.map((student) => ({
     id: student.id,
     _id: student.id,
+    firstName: student.firstName,
+    lastName: student.lastName,
     name: `${student.firstName} ${student.lastName}`,
     email: student.email,
     admissionNumber: student.admissionNumber,
     class: student.class,
     stream: student.stream,
+    classLabel: formatClassStream(student.class, student.stream),
     avatar:
       student.profileImage ||
       `https://api.dicebear.com/7.x/avataaars/svg?seed=${student.firstName}${student.lastName}`,
-    progress: Math.floor(Math.random() * 40) + 60
+    progress: 78
   }));
 
   res.json(studentsWithProgress);

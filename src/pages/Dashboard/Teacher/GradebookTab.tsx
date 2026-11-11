@@ -84,9 +84,10 @@ export function GradebookTab() {
     setIsModalOpen(true);
   };
 
-  const handleGradeSubmission = (submission) => {
+  const handleGradeSubmission = (assignment, submission) => {
+    setSelectedAssignment(assignment);
     setSelectedSubmission(submission);
-    setGradingSubmission(submission._id);
+    setGradingSubmission(submission.id || submission._id);
     setGrade(submission.marks?.toString() || '');
     setFeedback(submission.feedback || '');
   };
@@ -95,18 +96,21 @@ export function GradebookTab() {
     if (!selectedSubmission || !selectedAssignment) return;
 
     try {
-      // This would be the API call to save grades
-      // await assignmentAPI.gradeAssignment(
-      //   selectedAssignment._id,
-      //   selectedSubmission.student._id,
-      //   { marks: parseInt(grade), feedback }
-      // );
-      
-      console.log('Grade saved:', { grade, feedback });
+      const assignmentId = selectedAssignment.id || selectedAssignment._id;
+      const studentId =
+        selectedSubmission.student?.id ||
+        selectedSubmission.student?._id ||
+        selectedSubmission.studentId;
+
+      await assignmentAPI.gradeAssignment(assignmentId, studentId, {
+        marks: Number(grade),
+        feedback
+      });
+
       setGradingSubmission(null);
       setGrade('');
       setFeedback('');
-      
+
       // Refresh assignments
       await fetchAssignments();
     } catch (err) {
@@ -122,10 +126,10 @@ export function GradebookTab() {
         label: 'Graded',
         color: 'bg-success/10 text-success'
       };
-    } else if (submission.status === 'pending') {
+    } else if (submission.status === 'submitted' || submission.status === 'pending' || submission.status === 'late') {
       return {
         icon: <ClockIcon className="w-5 h-5 text-warning" />,
-        label: 'Pending',
+        label: submission.status === 'late' ? 'Submitted Late' : 'Submitted',
         color: 'bg-warning/10 text-warning'
       };
     }
@@ -286,11 +290,11 @@ export function GradebookTab() {
                               View
                             </Button>
 
-                            {submission.status === 'pending' && (
+                            {submission.status !== 'graded' && (
                               <Button
                                 variant="primary"
                                 size="sm"
-                                onClick={() => handleGradeSubmission(submission)}
+                                onClick={() => handleGradeSubmission(assignment, submission)}
                               >
                                 Grade
                               </Button>

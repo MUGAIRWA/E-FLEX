@@ -42,8 +42,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Initialize auth state from localStorage
   useEffect(() => {
     const initializeAuth = async () => {
-      const token = localStorage.getItem('accessToken');
-      const refreshToken = localStorage.getItem('refreshToken');
+      const rawToken = localStorage.getItem('accessToken');
+      const rawRefresh = localStorage.getItem('refreshToken');
+
+      const token = rawToken && rawToken !== 'undefined' && rawToken !== 'null' ? rawToken : null;
+      const refreshToken = rawRefresh && rawRefresh !== 'undefined' && rawRefresh !== 'null' ? rawRefresh : null;
+
+      if (rawToken === 'undefined' || rawToken === 'null') {
+        localStorage.removeItem('accessToken');
+      }
+      if (rawRefresh === 'undefined' || rawRefresh === 'null') {
+        localStorage.removeItem('refreshToken');
+      }
 
       if (token) {
         // Set token on both axios instances before making request
@@ -68,6 +78,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           } else {
             logout();
           }
+        }
+      } else if (refreshToken) {
+        try {
+          await refreshAccessToken();
+        } catch (refreshError) {
+          console.error('Token recovery failed:', refreshError);
+          logout();
         }
       }
       setLoading(false);
@@ -174,9 +191,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
 
     try {
-      const response = await authAPI.refreshToken({ refreshToken });
+      const response = await authAPI.refreshToken(refreshToken);
 
-      const { token: accessToken, user: userData } = response.data as any;
+      const { token, accessToken: returnedAccessToken, user: userData } = response.data as any;
+      const accessToken = returnedAccessToken || token;
+
+      if (!accessToken || accessToken === 'undefined') {
+        throw new Error('Invalid access token received from refresh');
+      }
 
       localStorage.setItem('accessToken', accessToken);
 

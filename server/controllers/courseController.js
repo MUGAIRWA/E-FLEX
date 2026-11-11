@@ -4,7 +4,12 @@ const { userWithEmail, studentBrief } = require('../utils/selects');
 const { asyncHandler, getPagination, paginated } = require('../utils/helpers');
 const { notifyUsers } = require('../utils/notify');
 const { materialUpload } = require('../middleware/upload');
-const { ensureTeacherCourse } = require('../services/courseService');
+const {
+  ensureTeacherCourse,
+  getRecipientsForCourse,
+  buildStudentCourseAccessWhere,
+  buildParentCourseAccessWhere
+} = require('../services/courseService');
 
 const courseInclude = {
   teacher: { select: userWithEmail },
@@ -291,34 +296,44 @@ const uploadTeacherContent = asyncHandler(async (req, res) => {
     data: { materials: [material, ...materials] }
   });
 
-  await notifyUsers(
-    req.app.get('io'),
-    course.students.map((s) => s.id),
-    {
-      title: `New ${type === 'video' ? 'Video' : 'Notes'}: ${title}`,
-      message: `${req.user.firstName} ${req.user.lastName} uploaded "${title}" in ${course.title}`,
-      type: 'info',
-      link: 'modules'
-    }
-  );
+  const { studentIds, parentIds, classStreamLabel } = await getRecipientsForCourse(course);
+  const io = req.app.get('io');
 
-  res.status(201).json(material);
+  await notifyUsers(io, studentIds, {
+    title: `New ${type === 'video' ? 'Video' : 'Notes'} (${course.subject}): ${title}`,
+    message: `${req.user.firstName} ${req.user.lastName} posted "${title}" for ${classStreamLabel}.`,
+    type: 'info',
+    link: 'modules'
+  });
+
+  if (parentIds.length > 0) {
+    await notifyUsers(io, parentIds, {
+      title: `New ${course.subject} ${type === 'video' ? 'Video' : 'Notes'} Posted`,
+      message: `Teacher ${req.user.firstName} ${req.user.lastName} shared "${title}" with ${classStreamLabel}.`,
+      type: 'info',
+      link: 'dashboard'
+    });
+  }
+
+  res.status(201).json({
+    ...material,
+    notifiedStudents: studentIds.length,
+    notifiedParents: parentIds.length,
+    classStreamLabel
+  });
 });
 
-// @desc    Get uploaded materials (for teacher or student)
+// @desc    Get uploaded materials (for teacher, student, or parent)
 // @route   GET /api/courses/materials
 // @access  Private
 const getCourseMaterials = asyncHandler(async (req, res) => {
-  const where = {};
+  let where = {};
   if (req.user.role === 'teacher') {
-    where.teacherId = req.user.id;
+    where = { teacherId: req.user.id };
   } else if (req.user.role === 'student') {
-    where.OR = [
-      { students: { some: { id: req.user.id } } },
-      ...(req.user.class
-        ? [{ class: req.user.class, ...(req.user.stream ? { stream: req.user.stream } : {}) }]
-        : [])
-    ];
+    where = buildStudentCourseAccessWhere(req.user);
+  } else if (req.user.role === 'parent') {
+    where = await buildParentCourseAccessWhere(req.user);
   }
 
   const courses = await prisma.course.findMany({

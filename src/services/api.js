@@ -17,12 +17,62 @@ const api = axios.create({
   },
 });
 
+const isJwtExpired = (token) => {
+  try {
+    const parts = token.split('.');
+    if (parts.length !== 3) return true;
+    const payload = JSON.parse(atob(parts[1].replace(/-/g, '+').replace(/_/g, '/')));
+    if (!payload.exp) return false;
+    // Consider expired if within 15 seconds of expiry
+    return payload.exp * 1000 < Date.now() + 15000;
+  } catch (e) {
+    return true;
+  }
+};
+
+const getValidStoredToken = (key, checkExpiry = false) => {
+  const val = localStorage.getItem(key);
+  if (!val || val === 'undefined' || val === 'null') {
+    if (val === 'undefined' || val === 'null') {
+      localStorage.removeItem(key);
+    }
+    return null;
+  }
+  if (checkExpiry && isJwtExpired(val)) {
+    return null;
+  }
+  return val;
+};
+
 // Request interceptor to add auth token
 api.interceptors.request.use(
-  (config) => {
-    const token = localStorage.getItem('accessToken');
+  async (config) => {
+    let token = getValidStoredToken('accessToken', true);
+    const refreshToken = getValidStoredToken('refreshToken', true);
+    const isAuthEndpoint =
+      config.url?.includes('/auth/login') ||
+      config.url?.includes('/auth/register') ||
+      config.url?.includes('/auth/refresh');
+
+    // Proactively refresh if accessToken is missing, corrupted ("undefined"), or expired
+    if (!token && refreshToken && !isAuthEndpoint) {
+      try {
+        const refreshRes = await axios.post(`${API_BASE_URL}/auth/refresh`, { refreshToken });
+        const newAccessToken = refreshRes.data?.accessToken || refreshRes.data?.token;
+        if (newAccessToken && newAccessToken !== 'undefined') {
+          localStorage.setItem('accessToken', newAccessToken);
+          api.defaults.headers.common['Authorization'] = `Bearer ${newAccessToken}`;
+          token = newAccessToken;
+        }
+      } catch (e) {
+        // Ignore here; response interceptor will handle 401 if needed
+      }
+    }
+
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
+    } else if (config.headers?.Authorization) {
+      delete config.headers.Authorization;
     }
     return config;
   },
@@ -36,26 +86,40 @@ api.interceptors.response.use(
   (response) => response,
   async (error) => {
     const originalRequest = error.config;
+    const isAuthEndpoint =
+      originalRequest?.url?.includes('/auth/login') ||
+      originalRequest?.url?.includes('/auth/register') ||
+      originalRequest?.url?.includes('/auth/refresh');
 
-    if (error.response?.status === 401 && !originalRequest._retry) {
+    if (error.response?.status === 401 && originalRequest && !originalRequest._retry && !isAuthEndpoint) {
       originalRequest._retry = true;
 
       try {
-        const refreshToken = localStorage.getItem('refreshToken');
-        if (refreshToken) {
-          const response = await axios.post(`${API_BASE_URL}/auth/refresh`, { refreshToken });
-          const { accessToken } = response.data;
-
-          localStorage.setItem('accessToken', accessToken);
-          api.defaults.headers.common['Authorization'] = `Bearer ${accessToken}`;
-
-          return api(originalRequest);
+        const refreshToken = getValidStoredToken('refreshToken');
+        if (!refreshToken) {
+          throw new Error('No refresh token available');
         }
+
+        const response = await axios.post(`${API_BASE_URL}/auth/refresh`, { refreshToken });
+        const newAccessToken = response.data?.accessToken || response.data?.token;
+
+        if (!newAccessToken || newAccessToken === 'undefined') {
+          throw new Error('Refresh endpoint did not return a valid access token');
+        }
+
+        localStorage.setItem('accessToken', newAccessToken);
+        api.defaults.headers.common['Authorization'] = `Bearer ${newAccessToken}`;
+        originalRequest.headers = originalRequest.headers || {};
+        originalRequest.headers['Authorization'] = `Bearer ${newAccessToken}`;
+
+        return api(originalRequest);
       } catch (refreshError) {
-        // Refresh failed, redirect to login
+        // Refresh failed or no refresh token available: clear dead session and redirect to login
         localStorage.removeItem('accessToken');
         localStorage.removeItem('refreshToken');
-        window.location.href = '/auth';
+        if (typeof window !== 'undefined' && !window.location.pathname.startsWith('/auth')) {
+          window.location.href = '/auth';
+        }
       }
     }
 
@@ -67,8 +131,20 @@ api.interceptors.response.use(
 export const authAPI = {
   login: (credentials) => api.post('/auth/login', credentials),
   register: (userData) => api.post('/auth/register', userData),
-  logout: (refreshToken) => api.post('/auth/logout', { refreshToken }),
-  refreshToken: (refreshToken) => axios.post(`${API_BASE_URL}/auth/refresh`, { refreshToken }),
+  logout: (refreshTokenOrObj) => {
+    const refreshToken =
+      typeof refreshTokenOrObj === 'object' && refreshTokenOrObj !== null
+        ? refreshTokenOrObj.refreshToken
+        : refreshTokenOrObj;
+    return api.post('/auth/logout', { refreshToken });
+  },
+  refreshToken: (refreshTokenOrObj) => {
+    const refreshToken =
+      typeof refreshTokenOrObj === 'object' && refreshTokenOrObj !== null
+        ? refreshTokenOrObj.refreshToken
+        : refreshTokenOrObj;
+    return axios.post(`${API_BASE_URL}/auth/refresh`, { refreshToken });
+  },
   getCurrentUser: () => api.get('/auth/me'),
   updateProfile: (userData) => api.put('/auth/me', userData),
 };

@@ -22,6 +22,7 @@ router.get('/profile', getParentProfile);
 router.put('/profile', updateParentProfile);
 router.put('/change-password', changeParentPassword);
 router.get('/students', getLinkedStudents);
+router.get('/children', getLinkedStudents);
 router.post('/request-removal/:studentId', requestStudentRemoval);
 router.put('/notifications', updateNotificationPreferences);
 router.put('/accessibility', updateAccessibilitySettings);

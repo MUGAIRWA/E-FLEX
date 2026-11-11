@@ -11,7 +11,7 @@ const {
   ROLES
 } = require('../services/userService');
 
-const ACCESS_TTL = process.env.JWT_EXPIRE || '15m';
+const ACCESS_TTL = process.env.JWT_EXPIRE || '7d';
 const REFRESH_TTL = process.env.JWT_EXPIRES_IN || '30d';
 const MAX_SESSIONS_KEPT = 10;
 
@@ -34,17 +34,36 @@ const issueRefreshToken = async (userId) => {
   return token;
 };
 
-const authPayload = async (user) => ({
-  _id: user.id,
-  id: user.id,
-  firstName: user.firstName,
-  lastName: user.lastName,
-  email: user.email,
-  role: user.role,
-  ...(user.role === 'teacher' ? { subjects: user.subjects, classesTaught: user.classesTaught } : {}),
-  token: generateToken(user.id),
-  refreshToken: await issueRefreshToken(user.id)
-});
+const authPayload = async (user) => {
+  const accessToken = generateToken(user.id);
+  return {
+    _id: user.id,
+    id: user.id,
+    firstName: user.firstName,
+    lastName: user.lastName,
+    email: user.email,
+    role: user.role,
+    ...(user.role === 'student'
+      ? {
+          class: user.class,
+          stream: user.stream,
+          admissionNumber: user.admissionNumber,
+          studentId: user.studentId
+        }
+      : {}),
+    ...(user.role === 'parent' ? { childEmail: user.childEmail } : {}),
+    ...(user.role === 'teacher'
+      ? {
+          subjects: user.subjects,
+          classesTaught: user.classesTaught,
+          streamsTaught: user.streamsTaught
+        }
+      : {}),
+    token: accessToken,
+    accessToken,
+    refreshToken: await issueRefreshToken(user.id)
+  };
+};
 
 // @desc    Register user
 // @route   POST /api/auth/register
@@ -105,11 +124,33 @@ const register = asyncHandler(async (req, res) => {
 
   // Auto-link a parent to their child if the child already exists
   if (role === 'parent' && data.childEmail) {
-    const child = await prisma.user.findFirst({ where: { email: data.childEmail, role: 'student' } });
+    const child = await prisma.user.findFirst({
+      where: { email: { equals: data.childEmail, mode: 'insensitive' }, role: 'student' }
+    });
     if (child) {
       await prisma.user.update({
         where: { id: child.id },
         data: { linkedParents: { connect: { id: user.id } } }
+      });
+    }
+  }
+
+  // If a student registers, auto-link any parent whose childEmail matches,
+  // and auto-enroll the student into existing courses for their class/stream
+  if (role === 'student') {
+    const matchingParents = await prisma.user.findMany({
+      where: {
+        role: 'parent',
+        childEmail: { equals: user.email, mode: 'insensitive' }
+      },
+      select: { id: true }
+    });
+    if (matchingParents.length > 0) {
+      await prisma.user.update({
+        where: { id: user.id },
+        data: {
+          linkedParents: { connect: matchingParents.map((p) => ({ id: p.id })) }
+        }
       });
     }
   }
@@ -156,9 +197,10 @@ const login = asyncHandler(async (req, res) => {
 // @route   POST /api/auth/refresh
 // @access  Public
 const refreshToken = asyncHandler(async (req, res) => {
-  const { refreshToken: token } = req.body;
+  const rawToken = req.body?.refreshToken;
+  const token = typeof rawToken === 'object' && rawToken !== null ? rawToken.refreshToken : rawToken;
 
-  if (!token) {
+  if (!token || typeof token !== 'string') {
     return res.status(401).json({ message: 'Refresh token required' });
   }
 
@@ -179,18 +221,21 @@ const refreshToken = asyncHandler(async (req, res) => {
     return res.status(403).json({ message: 'Invalid refresh token' });
   }
 
-  res.json({ token: generateToken(user.id), user });
+  const newAccessToken = generateToken(user.id);
+  res.json({ token: newAccessToken, accessToken: newAccessToken, user });
 });
 
 // @desc    Logout user
 // @route   POST /api/auth/logout
 // @access  Private
 const logout = asyncHandler(async (req, res) => {
-  const { refreshToken: token, allDevices } = req.body || {};
+  const rawToken = req.body?.refreshToken;
+  const token = typeof rawToken === 'object' && rawToken !== null ? rawToken.refreshToken : rawToken;
+  const allDevices = req.body?.allDevices;
 
   if (allDevices) {
     await prisma.refreshToken.deleteMany({ where: { userId: req.user.id } });
-  } else if (token) {
+  } else if (token && typeof token === 'string') {
     await prisma.refreshToken.deleteMany({ where: { tokenHash: hashToken(token), userId: req.user.id } });
   }
 

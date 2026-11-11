@@ -4,7 +4,58 @@ const { asyncHandler, getPagination, paginated, filesToAttachments, percentage, 
 const { notifyUsers } = require('../utils/notify');
 const { teacherClassFilter, isEnrolled, canTeacherAccessStudent } = require('../utils/permissions');
 const { assignmentUpload: upload } = require('../middleware/upload');
-const { ensureTeacherCourse } = require('../services/courseService');
+const {
+  ensureTeacherCourse,
+  getRecipientsForCourse,
+  buildStudentCourseAccessWhere,
+  buildParentCourseAccessWhere,
+  getParentLinkedStudents,
+  normalizeClassKey
+} = require('../services/courseService');
+
+const getStudentParentIds = async (student) => {
+  if (!student) return [];
+  const parents = await prisma.user.findMany({
+    where: {
+      role: 'parent',
+      isActive: true,
+      OR: [
+        { children: { some: { id: student.id } } },
+        { linkedParents: { some: { id: student.id } } },
+        ...(student.email
+          ? [{ childEmail: { equals: student.email, mode: 'insensitive' } }]
+          : [])
+      ]
+    },
+    select: { id: true }
+  });
+  return [...new Set(parents.map((p) => p.id))];
+};
+
+const canStudentAccessCourse = async (student, courseId) => {
+  if (await isEnrolled(courseId, student.id)) return true;
+  const course = await prisma.course.findUnique({ where: { id: courseId } });
+  if (!course) return false;
+  if (
+    course.class &&
+    student.class &&
+    normalizeClassKey(course.class) === normalizeClassKey(student.class)
+  ) {
+    if (
+      !course.stream ||
+      !student.stream ||
+      course.stream.trim().toLowerCase() === student.stream.trim().toLowerCase()
+    ) {
+      // Auto-enroll the student into their class/stream course
+      await prisma.course.update({
+        where: { id: course.id },
+        data: { students: { connect: { id: student.id } } }
+      });
+      return true;
+    }
+  }
+  return false;
+};
 
 /**
  * Prisma `where` for assignments a teacher may see: their own courses, or
@@ -70,18 +121,32 @@ const createAssignment = asyncHandler(async (req, res) => {
     }
   });
 
-  await notifyUsers(
-    req.app.get('io'),
-    courseDoc.students.map((s) => s.id),
-    {
-      title: 'New Assignment',
-      message: `New assignment "${title}" has been posted in ${courseDoc.title}`,
-      type: 'info',
-      link: `/student/assignments/${assignment.id}`
-    }
-  );
+  const { studentIds, parentIds, classStreamLabel } = await getRecipientsForCourse(courseDoc);
+  const io = req.app.get('io');
+  const formattedDue = new Date(dueDate).toLocaleDateString();
 
-  res.status(201).json(assignment);
+  await notifyUsers(io, studentIds, {
+    title: `New ${courseDoc.subject} Assignment: ${title}`,
+    message: `${req.user.firstName} ${req.user.lastName} posted "${title}" for ${classStreamLabel} (Due: ${formattedDue}).`,
+    type: 'info',
+    link: 'assignments'
+  });
+
+  if (parentIds.length > 0) {
+    await notifyUsers(io, parentIds, {
+      title: `Assignment Alert (${courseDoc.subject}): ${title}`,
+      message: `Teacher ${req.user.firstName} ${req.user.lastName} assigned "${title}" to ${classStreamLabel}. Due date: ${formattedDue}.`,
+      type: 'warning',
+      link: 'dashboard'
+    });
+  }
+
+  res.status(201).json({
+    ...assignment,
+    notifiedStudents: studentIds.length,
+    notifiedParents: parentIds.length,
+    classStreamLabel
+  });
 });
 
 // @desc    Get assignments
@@ -89,28 +154,40 @@ const createAssignment = asyncHandler(async (req, res) => {
 // @access  Private
 const getAssignments = asyncHandler(async (req, res) => {
   const pg = getPagination(req.query);
-  const { course } = req.query;
+  const { course, subject } = req.query;
 
   const filters = [];
-  if (req.user.role === 'teacher') filters.push(teacherAssignmentScope(req.user));
-  else if (req.user.role === 'student') filters.push({ course: { students: { some: { id: req.user.id } } } });
-  else if (req.user.role === 'parent') {
-    filters.push({ course: { students: { some: { linkedParents: { some: { id: req.user.id } } } } } });
+  let parentChildren = [];
+  if (req.user.role === 'teacher') {
+    filters.push(teacherAssignmentScope(req.user));
+  } else if (req.user.role === 'student') {
+    filters.push({ course: buildStudentCourseAccessWhere(req.user) });
+  } else if (req.user.role === 'parent') {
+    parentChildren = await getParentLinkedStudents(req.user);
+    filters.push({ course: await buildParentCourseAccessWhere(req.user) });
   }
   if (course) filters.push({ courseId: course });
+  if (subject) {
+    filters.push({ course: { subject: { equals: String(subject), mode: 'insensitive' } } });
+  }
 
   const where = filters.length ? { AND: filters } : {};
 
-  // Students only see their own submission; staff see all
-  const submissionsWhere = req.user.role === 'student' ? { studentId: req.user.id } : undefined;
+  // Students only see their own submission; parents see their linked children's submissions; staff see all
+  let submissionsWhere = undefined;
+  if (req.user.role === 'student') {
+    submissionsWhere = { studentId: req.user.id };
+  } else if (req.user.role === 'parent') {
+    submissionsWhere = { studentId: { in: parentChildren.map((c) => c.id) } };
+  }
 
   const [assignments, total] = await prisma.$transaction([
     prisma.assignment.findMany({
       where,
       include: {
-        course: { select: { id: true, title: true, subject: true } },
+        course: { select: { id: true, title: true, subject: true, class: true, stream: true } },
         teacher: { select: userBrief },
-        submissions: { where: submissionsWhere, include: { student: { select: userBrief } } }
+        submissions: { where: submissionsWhere, include: { student: { select: studentBrief } } }
       },
       orderBy: { createdAt: 'desc' },
       skip: pg.skip,
@@ -143,7 +220,7 @@ const getAssignment = asyncHandler(async (req, res) => {
   }
 
   if (req.user.role === 'student') {
-    if (!(await isEnrolled(assignment.courseId, req.user.id))) {
+    if (!(await canStudentAccessCourse(req.user, assignment.courseId))) {
       return res.status(403).json({ message: 'Not authorized to access this assignment' });
     }
     // Students must not see classmates' submissions
@@ -153,7 +230,9 @@ const getAssignment = asyncHandler(async (req, res) => {
       return res.status(403).json({ message: 'Not authorized to access this assignment' });
     }
   } else if (req.user.role === 'parent') {
-    return res.status(403).json({ message: 'Not authorized to access this assignment' });
+    const children = await getParentLinkedStudents(req.user);
+    const childIds = new Set(children.map((c) => c.id));
+    assignment.submissions = assignment.submissions.filter((s) => childIds.has(s.studentId));
   }
 
   res.json(assignment);
@@ -163,7 +242,10 @@ const getAssignment = asyncHandler(async (req, res) => {
 // @route   POST /api/assignments/:id/submit
 // @access  Private/Student
 const submitAssignment = asyncHandler(async (req, res) => {
-  const assignment = await prisma.assignment.findUnique({ where: { id: req.params.id } });
+  const assignment = await prisma.assignment.findUnique({
+    where: { id: req.params.id },
+    include: { course: { select: { id: true, title: true, subject: true } } }
+  });
 
   if (!assignment) {
     return res.status(404).json({ message: 'Assignment not found' });
@@ -171,7 +253,7 @@ const submitAssignment = asyncHandler(async (req, res) => {
   if (!assignment.isActive) {
     return res.status(400).json({ message: 'This assignment is closed' });
   }
-  if (!(await isEnrolled(assignment.courseId, req.user.id))) {
+  if (!(await canStudentAccessCourse(req.user, assignment.courseId))) {
     return res.status(403).json({ message: 'Not authorized to submit this assignment' });
   }
 
@@ -183,19 +265,40 @@ const submitAssignment = asyncHandler(async (req, res) => {
   }
 
   const now = new Date();
-  await prisma.submission.create({
+  const submission = await prisma.submission.create({
     data: {
       assignmentId: assignment.id,
       studentId: req.user.id,
-      content: req.body.content,
+      content: req.body.content || '',
       attachments: filesToAttachments(req.files, 'assignments'),
       submittedAt: now,
-      // FIX: 'late' status existed in the schema but was never set
       status: now > assignment.dueDate ? 'late' : 'submitted'
     }
   });
 
-  res.json({ message: 'Assignment submitted successfully' });
+  const io = req.app.get('io');
+  const studentName = `${req.user.firstName} ${req.user.lastName}`;
+
+  // Notify teacher
+  await notifyUsers(io, [assignment.teacherId], {
+    title: `Assignment Submitted: ${assignment.title}`,
+    message: `${studentName} submitted "${assignment.title}" (${assignment.course?.subject || ''}).`,
+    type: 'info',
+    link: 'gradebook'
+  });
+
+  // Notify student's linked parents
+  const parentIds = await getStudentParentIds(req.user);
+  if (parentIds.length > 0) {
+    await notifyUsers(io, parentIds, {
+      title: `Assignment Submitted by ${req.user.firstName}`,
+      message: `${studentName} submitted the ${assignment.course?.subject || ''} assignment "${assignment.title}".`,
+      type: 'success',
+      link: 'dashboard'
+    });
+  }
+
+  res.json({ message: 'Assignment submitted successfully', submission });
 });
 
 // @desc    Grade assignment
@@ -269,12 +372,23 @@ const gradeAssignment = asyncHandler(async (req, res) => {
     }
   });
 
-  await notifyUsers(req.app.get('io'), [studentId], {
+  const io = req.app.get('io');
+  await notifyUsers(io, [studentId], {
     title: 'Assignment Graded',
-    message: `Your assignment "${assignment.title}" has been graded`,
+    message: `Your assignment "${assignment.title}" has been graded: ${numericMarks}/${assignment.totalMarks} (${letterGrade(pct)}).`,
     type: 'success',
-    link: `/student/assignments/${assignment.id}`
+    link: 'assignments'
   });
+
+  const parentIds = await getStudentParentIds(student);
+  if (parentIds.length > 0) {
+    await notifyUsers(io, parentIds, {
+      title: `Grade Alert: ${assignment.title}`,
+      message: `${student.firstName} ${student.lastName} scored ${numericMarks}/${assignment.totalMarks} (${letterGrade(pct)}) on "${assignment.title}".`,
+      type: 'success',
+      link: 'progress-report'
+    });
+  }
 
   res.json({ message: 'Assignment graded successfully' });
 });
