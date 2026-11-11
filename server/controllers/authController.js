@@ -10,6 +10,10 @@ const {
   emailTaken,
   ROLES
 } = require('../services/userService');
+const {
+  buildStudentCourseAccessWhere,
+  ensureTeacherCourse
+} = require('../services/courseService');
 
 const ACCESS_TTL = process.env.JWT_EXPIRE || '7d';
 const REFRESH_TTL = process.env.JWT_EXPIRES_IN || '30d';
@@ -76,8 +80,10 @@ const register = asyncHandler(async (req, res) => {
     lastName,
     role,
     phoneNumber,
+    parentEmail,
     studentId,
     childEmail,
+    childAdmissionNumber,
     teacherId,
     subjects,
     classesTaught,
@@ -92,59 +98,127 @@ const register = asyncHandler(async (req, res) => {
     return res.status(400).json({ message: 'email, password, firstName, lastName and role are required' });
   }
 
-  // Never allow self-registration as admin
-  if (!ROLES.includes(role) || role === 'admin') {
+  if (!ROLES.includes(role)) {
     return res.status(400).json({ message: 'Invalid role' });
   }
 
   if (await emailTaken(email)) {
-    return res.status(400).json({ message: 'User already exists' });
+    return res.status(400).json({ message: 'User already exists with this email' });
   }
 
-  const data = { email, password, firstName, lastName, role, phoneNumber };
+  const data = {
+    email,
+    password,
+    firstName: firstName.trim(),
+    lastName: lastName.trim(),
+    role,
+    ...(phoneNumber ? { phoneNumber: String(phoneNumber).trim() } : {})
+  };
 
   if (role === 'student') {
-    Object.assign(data, pickDefined({ studentId, admissionNumber, class: userClass, stream }, [
-      'studentId',
-      'admissionNumber',
-      'class',
-      'stream'
-    ]));
+    const resolvedStudentId =
+      studentId && String(studentId).trim()
+        ? String(studentId).trim()
+        : `STU-${Date.now().toString().slice(-6)}-${Math.floor(100 + Math.random() * 900)}`;
+
+    Object.assign(
+      data,
+      pickDefined(
+        {
+          studentId: resolvedStudentId,
+          admissionNumber: admissionNumber ? String(admissionNumber).trim() : undefined,
+          class: userClass,
+          stream: stream ? String(stream).trim() : undefined
+        },
+        ['studentId', 'admissionNumber', 'class', 'stream']
+      )
+    );
     if (Array.isArray(linkedParents)) data.linkedParents = linkedParents;
   }
-  if (role === 'parent' && childEmail) data.childEmail = normalizeEmail(childEmail);
+
+  if (role === 'parent') {
+    const childKey = childEmail || childAdmissionNumber;
+    if (childKey && String(childKey).trim()) {
+      data.childEmail = String(childKey).trim().toLowerCase();
+    }
+  }
+
   if (role === 'teacher') {
-    if (teacherId) data.teacherId = teacherId;
-    if (Array.isArray(subjects)) data.subjects = subjects;
+    data.teacherId =
+      teacherId && String(teacherId).trim()
+        ? String(teacherId).trim()
+        : `TCH-${Date.now().toString().slice(-6)}-${Math.floor(100 + Math.random() * 900)}`;
+
+    if (Array.isArray(subjects)) data.subjects = subjects.filter(Boolean);
     if (Array.isArray(classesTaught)) data.classesTaught = classesTaught;
-    if (Array.isArray(streamsTaught)) data.streamsTaught = streamsTaught;
+
+    const derivedStreams = Array.isArray(classesTaught)
+      ? classesTaught
+          .map((item) => (typeof item === 'object' && item !== null ? item.stream : null))
+          .filter(Boolean)
+      : [];
+    const explicitStreams = Array.isArray(streamsTaught) ? streamsTaught.filter(Boolean) : [];
+    data.streamsTaught = [...new Set([...explicitStreams, ...derivedStreams])];
   }
 
   const user = await createUser(data);
 
-  // Auto-link a parent to their child if the child already exists
-  if (role === 'parent' && data.childEmail) {
-    const child = await prisma.user.findFirst({
-      where: { email: { equals: data.childEmail, mode: 'insensitive' }, role: 'student' }
-    });
-    if (child) {
-      await prisma.user.update({
-        where: { id: child.id },
-        data: { linkedParents: { connect: { id: user.id } } }
+  // Auto-link a parent to their child(ren) if the student already exists
+  if (role === 'parent') {
+    const parentOrConditions = [];
+    if (data.childEmail) {
+      parentOrConditions.push({ email: { equals: data.childEmail, mode: 'insensitive' } });
+      parentOrConditions.push({ admissionNumber: { equals: data.childEmail, mode: 'insensitive' } });
+    }
+    if (data.phoneNumber) {
+      parentOrConditions.push({ phoneNumber: { equals: data.phoneNumber } });
+    }
+
+    if (parentOrConditions.length > 0) {
+      const matchingChildren = await prisma.user.findMany({
+        where: {
+          role: 'student',
+          OR: parentOrConditions
+        },
+        select: { id: true }
       });
+
+      if (matchingChildren.length > 0) {
+        await Promise.all(
+          matchingChildren.map((child) =>
+            prisma.user.update({
+              where: { id: child.id },
+              data: { linkedParents: { connect: { id: user.id } } }
+            })
+          )
+        );
+      }
     }
   }
 
-  // If a student registers, auto-link any parent whose childEmail matches,
-  // and auto-enroll the student into existing courses for their class/stream
+  // If a student registers, auto-link any matching parent and auto-enroll in matching class/stream courses
   if (role === 'student') {
+    const studentParentOr = [
+      { childEmail: { equals: user.email, mode: 'insensitive' } }
+    ];
+    if (user.admissionNumber) {
+      studentParentOr.push({ childEmail: { equals: user.admissionNumber, mode: 'insensitive' } });
+    }
+    if (parentEmail && String(parentEmail).trim()) {
+      studentParentOr.push({ email: { equals: normalizeEmail(parentEmail), mode: 'insensitive' } });
+    }
+    if (user.phoneNumber) {
+      studentParentOr.push({ phoneNumber: { equals: user.phoneNumber } });
+    }
+
     const matchingParents = await prisma.user.findMany({
       where: {
         role: 'parent',
-        childEmail: { equals: user.email, mode: 'insensitive' }
+        OR: studentParentOr
       },
       select: { id: true }
     });
+
     if (matchingParents.length > 0) {
       await prisma.user.update({
         where: { id: user.id },
@@ -152,6 +226,45 @@ const register = asyncHandler(async (req, res) => {
           linkedParents: { connect: matchingParents.map((p) => ({ id: p.id })) }
         }
       });
+    }
+
+    // Auto-enroll student into existing courses for their class & stream
+    if (user.class) {
+      const matchingCourses = await prisma.course.findMany({
+        where: {
+          isActive: true,
+          ...buildStudentCourseAccessWhere(user)
+        },
+        select: { id: true }
+      });
+
+      if (matchingCourses.length > 0) {
+        await prisma.user.update({
+          where: { id: user.id },
+          data: {
+            enrolledCourses: {
+              connect: matchingCourses.map((c) => ({ id: c.id }))
+            }
+          }
+        });
+      }
+    }
+  }
+
+  // If a teacher registers, initialize their courses for their selected subjects and class/stream pairs
+  if (role === 'teacher' && Array.isArray(data.subjects) && Array.isArray(data.classesTaught)) {
+    for (const subj of data.subjects) {
+      for (const ct of data.classesTaught) {
+        const cls = typeof ct === 'object' && ct !== null ? ct.class : ct;
+        const strm = typeof ct === 'object' && ct !== null ? ct.stream : '';
+        if (subj && cls) {
+          try {
+            await ensureTeacherCourse(user, { subject: subj, className: cls, stream: strm });
+          } catch (e) {
+            // Non-blocking course initialization
+          }
+        }
+      }
     }
   }
 

@@ -13,6 +13,7 @@ const RegisterFormStudent = ({ onSubmit, loading }) => {
     password: '',
     parentName: '',
     parentPhone: '',
+    parentEmail: '',
     class: '',
     stream: ''
   });
@@ -61,6 +62,9 @@ const RegisterFormStudent = ({ onSubmit, loading }) => {
     else if (formData.password.length < 6) newErrors.password = 'Password must be at least 6 characters';
     if (!formData.parentName.trim()) newErrors.parentName = 'Parent name is required';
     if (!formData.parentPhone.trim()) newErrors.parentPhone = 'Parent phone is required';
+    if (formData.parentEmail && !/\S+@\S+\.\S+/.test(formData.parentEmail)) {
+      newErrors.parentEmail = 'Parent email is invalid';
+    }
     if (!formData.class) newErrors.class = 'Class is required';
     if (!formData.stream) newErrors.stream = 'Stream is required';
     return newErrors;
@@ -78,11 +82,12 @@ const RegisterFormStudent = ({ onSubmit, loading }) => {
     const registrationData = {
       firstName: nameParts[0],
       lastName: nameParts.slice(1).join(' '),
-      email: formData.email,
+      email: formData.email.trim(),
       password: formData.password,
       role: 'student',
-      phoneNumber: formData.parentPhone,
-      admissionNumber: formData.admissionNumber,
+      phoneNumber: formData.parentPhone.trim(),
+      ...(formData.parentEmail.trim() ? { parentEmail: formData.parentEmail.trim() } : {}),
+      admissionNumber: formData.admissionNumber.trim(),
       class: formData.class,
       stream: formData.stream,
       linkedParents: []
@@ -164,6 +169,16 @@ const RegisterFormStudent = ({ onSubmit, loading }) => {
         onChange={handleChange}
         error={errors.parentPhone}
         required
+      />
+
+      <InputField
+        label="Parent Email (Optional)"
+        type="email"
+        name="parentEmail"
+        placeholder="Enter parent's email to auto-link accounts"
+        value={formData.parentEmail}
+        onChange={handleChange}
+        error={errors.parentEmail}
       />
 
       <InputField

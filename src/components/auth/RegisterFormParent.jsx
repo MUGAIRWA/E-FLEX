@@ -37,9 +37,6 @@ const RegisterFormParent = ({ onSubmit, loading }) => {
     if (!formData.email) newErrors.email = 'Email is required';
     else if (!/\S+@\S+\.\S+/.test(formData.email)) newErrors.email = 'Email is invalid';
     if (!formData.phone.trim()) newErrors.phone = 'Phone number is required';
-    if (formData.childEmail && !/\S+@\S+\.\S+/.test(formData.childEmail)) {
-      newErrors.childEmail = 'Student email is invalid';
-    }
     if (!formData.password) newErrors.password = 'Password is required';
     else if (formData.password.length < 6) newErrors.password = 'Password must be at least 6 characters';
     return newErrors;
@@ -57,11 +54,13 @@ const RegisterFormParent = ({ onSubmit, loading }) => {
     const registrationData = {
       firstName: nameParts[0],
       lastName: nameParts.slice(1).join(' '),
-      email: formData.email,
-      phoneNumber: formData.phone,
+      email: formData.email.trim(),
+      phoneNumber: formData.phone.trim(),
       password: formData.password,
       role: 'parent',
-      ...(formData.childEmail ? { childEmail: formData.childEmail.trim() } : {})
+      ...(formData.childEmail && formData.childEmail.trim()
+        ? { childEmail: formData.childEmail.trim() }
+        : {})
     };
 
     if (typeof onSubmit === 'function') {
@@ -110,10 +109,10 @@ const RegisterFormParent = ({ onSubmit, loading }) => {
       />
 
       <InputField
-        label="Child's Student Email (Optional)"
-        type="email"
+        label="Child's Student Email or Admission Number"
+        type="text"
         name="childEmail"
-        placeholder="Link your child's student email"
+        placeholder="e.g. student@school.ac.ke or ADM-2026-001"
         value={formData.childEmail}
         onChange={handleChange}
         error={errors.childEmail}

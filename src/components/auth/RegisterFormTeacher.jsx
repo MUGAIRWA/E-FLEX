@@ -30,7 +30,7 @@ const RegisterFormTeacher = ({ onSubmit, loading }) => {
   const subjectOptions = [
     { value: 'Mathematics', label: 'Mathematics' },
     { value: 'English', label: 'English' },
-    { value: 'Kiwahili', label: 'Kiwahili' },
+    { value: 'Kiswahili', label: 'Kiswahili' },
     { value: 'Chemistry', label: 'Chemistry' },
     { value: 'Biology', label: 'Biology' },
     { value: 'Physics', label: 'Physics' },
@@ -122,16 +122,21 @@ const RegisterFormTeacher = ({ onSubmit, loading }) => {
 
     // Delegate to parent (AuthPage) which uses AuthContext to register
     if (typeof onSubmit === 'function') {
+      const nameParts = formData.fullName.trim().split(/\s+/);
+      const streamsTaught = [
+        ...new Set(formData.classesTaught.map((item) => item.stream).filter(Boolean))
+      ];
       const registrationData = {
-        firstName: formData.fullName.split(' ')[0],
-        lastName: formData.fullName.split(' ').slice(1).join(' '),
-        email: formData.email,
-        phoneNumber: formData.phone,
+        firstName: nameParts[0],
+        lastName: nameParts.slice(1).join(' '),
+        email: formData.email.trim(),
+        phoneNumber: formData.phone.trim(),
         password: formData.password,
         role: 'teacher',
         teacherId: `TCH-${Date.now()}`,
         subjects: formData.subjects,
-        classesTaught: formData.classesTaught
+        classesTaught: formData.classesTaught,
+        streamsTaught
       };
       await onSubmit(registrationData);
     }
@@ -189,33 +194,38 @@ const RegisterFormTeacher = ({ onSubmit, loading }) => {
       />
 
       <div className="mb-4">
-        <label className="block text-sm font-medium text-gray-700 mb-2">
-          Classes Taught {errors.classesTaught && <span className="text-red-500">*</span>}
+        <label className="block text-sm font-semibold text-[#16211E] mb-2">
+          Classes Taught <span className="text-[#C85A28]">*</span>
         </label>
-        <div className="space-y-4">
+        <div className="space-y-3">
           {classOptions.map((classOption) => {
             const isSelected = formData.classesTaught.some(item => item.class === classOption.value);
             const selectedStream = formData.classesTaught.find(item => item.class === classOption.value)?.stream || '';
             return (
-              <div key={classOption.value} className="border rounded-lg p-4">
-                <label className="flex items-center mb-2">
+              <div
+                key={classOption.value}
+                className={`border rounded-xl p-4 transition-colors ${
+                  isSelected ? 'border-[#134E4A] bg-[#134E4A]/5' : 'border-[#D8D1C4] bg-white'
+                }`}
+              >
+                <label className="flex items-center font-medium text-[#16211E] cursor-pointer">
                   <input
                     type="checkbox"
                     checked={isSelected}
                     onChange={(e) => handleClassChange(e, classOption.value)}
-                    className="mr-2"
+                    className="mr-2.5 accent-[#134E4A] w-4 h-4"
                   />
                   {classOption.label}
                 </label>
                 {isSelected && (
-                  <div className="ml-6">
-                    <label className="block text-sm font-medium text-gray-600 mb-1">
+                  <div className="mt-3 pl-6">
+                    <label className="block text-xs font-semibold text-[#5C6663] uppercase tracking-wider mb-1.5">
                       Select Stream for {classOption.label}
                     </label>
                     <select
                       value={selectedStream}
                       onChange={(e) => handleStreamChange(classOption.value, e.target.value)}
-                      className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      className="w-full p-2.5 border border-[#D8D1C4] bg-white text-[#16211E] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#134E4A] focus:border-[#134E4A]"
                       required
                     >
                       <option value="">Select a stream</option>
@@ -236,21 +246,19 @@ const RegisterFormTeacher = ({ onSubmit, loading }) => {
         )}
       </div>
 
-
-
       <div className="mb-4">
-        <label className="block text-sm font-medium text-gray-700 mb-2">
-          Subjects {errors.subjects && <span className="text-red-500">*</span>}
+        <label className="block text-sm font-semibold text-[#16211E] mb-2">
+          Subjects <span className="text-[#C85A28]">*</span>
         </label>
-        <div className="grid grid-cols-2 gap-2">
+        <div className="grid grid-cols-2 gap-2.5 p-4 rounded-xl border border-[#D8D1C4] bg-[#F8F6F1]/60">
           {subjectOptions.map((subject) => (
-            <label key={subject.value} className="flex items-center">
+            <label key={subject.value} className="flex items-center text-sm text-[#16211E] cursor-pointer">
               <input
                 type="checkbox"
                 value={subject.value}
                 checked={formData.subjects.includes(subject.value)}
                 onChange={(e) => handleMultiSelectChange(e, 'subjects')}
-                className="mr-2"
+                className="mr-2 accent-[#134E4A] w-4 h-4"
               />
               {subject.label}
             </label>

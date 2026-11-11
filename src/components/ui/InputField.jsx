@@ -12,7 +12,7 @@ const InputField = ({
   options = [],
   ...props
 }) => {
-  const baseInputStyles = 'w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all duration-300';
+  const baseInputStyles = 'w-full px-4 py-3 border border-[#D8D1C4] bg-white text-[#16211E] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#134E4A] focus:border-[#134E4A] transition-all duration-200';
   const errorStyles = error ? 'border-red-500 focus:ring-red-500' : '';
 
   return (
@@ -21,8 +21,8 @@ const InputField = ({
       animate={{ opacity: 1, y: 0 }}
       className="mb-4"
     >
-      <label className="block text-sm font-medium text-gray-700 mb-2">
-        {label} {required && <span className="text-red-500">*</span>}
+      <label className="block text-sm font-semibold text-[#16211E] mb-2">
+        {label} {required && <span className="text-[#C85A28]">*</span>}
       </label>
 
       {type === 'select' ? (

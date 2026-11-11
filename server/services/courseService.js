@@ -98,9 +98,19 @@ const getParentLinkedStudents = async (parentUser) => {
     { children: { some: { id: parentUser.id } } }
   ];
 
-  if (parentUser.childEmail) {
+  if (parentUser.childEmail && parentUser.childEmail.trim()) {
+    const childKey = parentUser.childEmail.trim();
     orFilters.push({
-      email: { equals: parentUser.childEmail.trim(), mode: 'insensitive' }
+      email: { equals: childKey, mode: 'insensitive' }
+    });
+    orFilters.push({
+      admissionNumber: { equals: childKey, mode: 'insensitive' }
+    });
+  }
+
+  if (parentUser.phoneNumber && parentUser.phoneNumber.trim()) {
+    orFilters.push({
+      phoneNumber: { equals: parentUser.phoneNumber.trim() }
     });
   }
 
@@ -185,6 +195,8 @@ const getRecipientsForCourse = async (course) => {
       firstName: true,
       lastName: true,
       email: true,
+      admissionNumber: true,
+      phoneNumber: true,
       class: true,
       stream: true
     }
@@ -193,8 +205,14 @@ const getRecipientsForCourse = async (course) => {
   const studentEmails = studentsWithEmails
     .map((s) => s.email)
     .filter(Boolean);
+  const studentAdmissions = studentsWithEmails
+    .map((s) => s.admissionNumber)
+    .filter(Boolean);
+  const studentPhones = studentsWithEmails
+    .map((s) => s.phoneNumber)
+    .filter(Boolean);
 
-  // Find all parents linked to any of these students via relation OR childEmail
+  // Find all parents linked to any of these students via relation, childEmail, admissionNumber, or phoneNumber
   const parents = await prisma.user.findMany({
     where: {
       role: 'parent',
@@ -205,6 +223,16 @@ const getRecipientsForCourse = async (course) => {
         ...(studentEmails.length > 0
           ? studentEmails.map((em) => ({
               childEmail: { equals: em, mode: 'insensitive' }
+            }))
+          : []),
+        ...(studentAdmissions.length > 0
+          ? studentAdmissions.map((adm) => ({
+              childEmail: { equals: adm, mode: 'insensitive' }
+            }))
+          : []),
+        ...(studentPhones.length > 0
+          ? studentPhones.map((ph) => ({
+              phoneNumber: { equals: ph }
             }))
           : [])
       ]
