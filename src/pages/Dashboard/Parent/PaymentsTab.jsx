@@ -143,7 +143,7 @@ export function PaymentsTab() {
                         )}
                       </div>
                     </td>
-                    <td className="py-3 px-4">KSh {payment.amount}</td>
+                    <td className="py-3 px-4">KSh {payment.amount}/week</td>
                     <td className="py-3 px-4">{payment.date}</td>
                     <td className="py-3 px-4">
                       {payment.receipt ? (
@@ -192,7 +192,7 @@ export function PaymentsTab() {
               Confirm Payment
             </h3>
             <p className="text-gray-600 mb-6">
-              Pay KSh 250 for {selectedSubject || 'this'} subject? This will be
+              Pay KSh 250/week for {selectedSubject || 'this'} subject? This will be
               processed via M-Pesa.
             </p>
             <div className="flex space-x-4">

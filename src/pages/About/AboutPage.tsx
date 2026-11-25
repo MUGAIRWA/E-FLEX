@@ -72,7 +72,7 @@ const ROLE_DETAILS: RoleDetail[] = [
       'Review subject grades, exam scores, and teacher feedback in real time',
       'Monitor weekly attendance and assignment submission consistency',
       'Communicate directly with subject teachers and school leadership',
-      'Manage KSh 250/subject enrollment payments and downloadable receipts'
+      'Manage KSh 250/week enrollment payments and downloadable receipts'
     ]
   },
   {
@@ -112,7 +112,7 @@ const FAQS = [
   {
     question: 'How much does E-Flex cost?',
     answer:
-      'E-Flex is priced at KSh 250 per subject to remain accessible for families while providing full access to weekly learning modules, timed quizzes, assignment grading, and downloadable revision materials.'
+      'E-Flex is priced at KSh 250/week to remain accessible for families while providing full access to weekly learning modules, timed quizzes, assignment grading, and downloadable revision materials.'
   }
 ];
 
@@ -190,7 +190,7 @@ export function AboutPage() {
                     </div>
                     <div>
                       <div className="font-poppins font-bold text-2xl text-[#F4A261]">KSh 250</div>
-                      <div className="text-[11px] text-white/75 mt-0.5">Per Subject</div>
+                      <div className="text-[11px] text-white/75 mt-0.5">Per Week</div>
                     </div>
                   </div>
                 </div>

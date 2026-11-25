@@ -101,7 +101,7 @@ export function FinanceDashboard() {
       value: courses.length.toLocaleString(),
       icon: <TrendingUpIcon className="w-6 h-6" />,
       color: 'text-[#134E4A]',
-      subtext: 'KSh 250 standard subject rate'
+      subtext: 'KSh 250/week standard rate'
     }
   ];
 

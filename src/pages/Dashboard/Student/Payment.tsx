@@ -67,7 +67,7 @@ export function Payment(): JSX.Element {
           Unlock Your Learning Journey
         </h2>
         <p className="text-lg font-medium text-[#E8F1EF] mb-3">
-          Each subject costs just KSh 250 per term
+          Access costs just KSh 250/week
         </p>
         <p className="text-sm text-[#C2D9D4] max-w-2xl">
           Get full access to structured weekly modules, teacher notes, interactive quizzes,
@@ -109,7 +109,7 @@ export function Payment(): JSX.Element {
                     </p>
                   )}
                   <p className="text-2xl font-bold text-[#134E4A]">
-                    KSh {subject.amount}
+                    KSh {subject.amount}/week
                   </p>
                 </div>
                 {subject.status === 'paid' ? (
@@ -133,7 +133,7 @@ export function Payment(): JSX.Element {
               ) : (
                 <Button variant="accent" className="w-full mt-4">
                   <CreditCardIcon className="w-4 h-4 mr-2" />
-                  Pay Now (KSh {subject.amount})
+                  Pay Now (KSh {subject.amount}/week)
                 </Button>
               )}
             </Card>

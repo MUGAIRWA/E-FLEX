@@ -108,8 +108,7 @@ export function LandingPage() {
 
               <p className="text-lg text-[#4A5552] mb-8 max-w-2xl leading-relaxed">
                 Replace ungraded paper holiday packets with structured weekly modules, teacher-marked
-                assignments, and transparent progress reports for parents—all for KSh 250 per
-                subject.
+                assignments, and transparent progress reports for parents—all for KSh 250/week.
               </p>
 
               {/* Tactile Role Switcher Box */}
@@ -161,7 +160,7 @@ export function LandingPage() {
                 </div>
                 <div>
                   <div className="font-poppins font-bold text-2xl text-[#134E4A]">KSh 250</div>
-                  <div className="text-xs text-[#5C6663] mt-0.5">Per subject / holiday</div>
+                  <div className="text-xs text-[#5C6663] mt-0.5">Per week</div>
                 </div>
               </div>
             </motion.div>
@@ -504,7 +503,7 @@ export function LandingPage() {
                 Ready to make holiday study structured and stress-free?
               </h2>
               <p className="text-white/80 text-base sm:text-lg max-w-2xl">
-                Enroll for KSh 250 per subject or sign in with your school credentials to access
+                Enroll for KSh 250/week or sign in with your school credentials to access
                 your classes, modules, and progress reports.
               </p>
             </div>
