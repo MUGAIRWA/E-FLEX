@@ -20,7 +20,7 @@ const ROLE_OPTIONS = [
     id: 'student',
     label: 'Student',
     actionLabel: 'Enter Student Portal',
-    summary: 'Follow weekly Form 1–4 subject modules, submit holiday work, and get teacher feedback.'
+    summary: 'Follow weekly Grade 10–12 subject modules, submit holiday work, and get teacher feedback.'
   },
   {
     id: 'teacher',
@@ -45,7 +45,7 @@ const ROLE_OPTIONS = [
 const TESTIMONIALS = [
   {
     name: 'Wanjiku Ndung’u',
-    role: 'Form 3 Student • Nakuru',
+    role: 'Grade 11 Student • Nakuru',
     quote:
       'Instead of carrying five photocopied holiday booklets that nobody marks until Week 3, I finish two Chemistry and Maths modules every week and see my teacher’s notes the next morning.',
     image: '/images/student-studying.jpg',
@@ -55,9 +55,9 @@ const TESTIMONIALS = [
     name: 'Madam Achieng',
     role: 'Senior Biology Teacher • Kisumu',
     quote:
-      'When term opens, I already know which concepts Form 2 Blue struggled with over the break. It saves me two full weeks of remedial marking and lets me teach from day one.',
+      'When term opens, I already know which concepts Grade 10 Blue struggled with over the break. It saves me two full weeks of remedial marking and lets me teach from day one.',
     image: '/images/teacher-achieng.jpg',
-    subjectTag: 'Form 2 & Form 4 Biology'
+    subjectTag: 'Grade 10 & Grade 12 Biology'
   },
   {
     name: 'Grace Ochieng',
@@ -151,8 +151,8 @@ export function LandingPage() {
               {/* Trust Strip */}
               <div className="mt-8 pt-6 border-t border-[#E5E0D5] grid grid-cols-3 gap-6 max-w-lg">
                 <div>
-                  <div className="font-poppins font-bold text-2xl text-[#16211E]">Form 1–4</div>
-                  <div className="text-xs text-[#5C6663] mt-0.5">8-4-4 & CBC Aligned</div>
+                  <div className="font-poppins font-bold text-2xl text-[#16211E]">Grade 10–12</div>
+                  <div className="text-xs text-[#5C6663] mt-0.5">CBE Senior Secondary</div>
                 </div>
                 <div>
                   <div className="font-poppins font-bold text-2xl text-[#16211E]">Weekly</div>
@@ -185,7 +185,7 @@ export function LandingPage() {
                   <div className="bg-white/95 backdrop-blur-md text-[#16211E] rounded-2xl p-4 border border-[#E5E0D5] shadow-lg">
                     <div className="flex items-center justify-between mb-2">
                       <span className="text-[11px] font-semibold uppercase tracking-wider text-[#134E4A] bg-[#E6F0EE] px-2.5 py-0.5 rounded-md">
-                        Form 3 • Week 3 Module
+                        Grade 11 • Week 3 Module
                       </span>
                       <span className="text-xs font-medium text-[#1E7A50] flex items-center gap-1">
                         <CheckCircle2Icon className="w-3.5 h-3.5" />
@@ -363,7 +363,7 @@ export function LandingPage() {
                 Class & Stream Organization
               </h3>
               <p className="text-sm text-[#4A5552] leading-relaxed">
-                Every course, exam, and announcement is neatly organized by Form (Form 1–4) and
+                Every course, exam, and announcement is neatly organized by Grade (Grade 10–12) and
                 Stream (Blue, Green, East, West) so students only see what applies to them.
               </p>
             </div>
@@ -398,7 +398,7 @@ export function LandingPage() {
                 Four dedicated portals working together in one academic ecosystem.
               </h2>
               <p className="text-[#4A5552] text-base sm:text-lg leading-relaxed mb-8">
-                Whether you are a Form 4 candidate revising for national exams, a teacher organizing
+                Whether you are a Grade 12 candidate revising for senior school assessments, a teacher organizing
                 holiday coursework, or a parent keeping track of term progress, E-Flex gives each
                 role a clean, focused workspace.
               </p>
@@ -581,7 +581,7 @@ export function LandingPage() {
 
         <div className="max-w-7xl mx-auto mt-10 pt-8 border-t border-[#263531] flex flex-col sm:flex-row justify-between text-xs text-[#7D8985] gap-4">
           <span>© 2026 E-Flex Learning Platform. Built for Kenyan educators and learners.</span>
-          <span>Form 1 – Form 4 Academic Continuity</span>
+          <span>Grade 10 – Grade 12 Senior Secondary Continuity</span>
         </div>
       </footer>
     </div>

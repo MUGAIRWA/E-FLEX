@@ -8,8 +8,13 @@ import { userAPI, courseAPI } from '../../../services/api';
 const formatClassStream = (cls, stream) => {
   if (!cls && !stream) return '';
   const norm = String(cls || '').toLowerCase().replace(/\s+/g, '');
-  const match = norm.match(/^form(\d+)$/);
-  const prettyClass = match ? `Form ${match[1]}` : cls || '';
+  const gMatch = norm.match(/^grade(\d+)$/);
+  const fMatch = norm.match(/^form(\d+)$/);
+  const prettyClass = gMatch
+    ? `Grade ${gMatch[1]}`
+    : fMatch
+    ? `Form ${fMatch[1]}`
+    : cls || '';
   return [prettyClass, stream].filter(Boolean).join(' ');
 };
 
@@ -155,11 +160,10 @@ export function TeachersOverview() {
             onChange={(e) => setSelectedClass(e.target.value)}
             className="px-4 py-2 border border-[#D8D1C4] bg-white rounded-xl"
           >
-            <option value="all">All Classes</option>
-            <option value="form1">Form 1</option>
-            <option value="form2">Form 2</option>
-            <option value="form3">Form 3</option>
-            <option value="form4">Form 4</option>
+            <option value="all">All Grades</option>
+            <option value="grade10">Grade 10</option>
+            <option value="grade11">Grade 11</option>
+            <option value="grade12">Grade 12</option>
           </select>
           <select
             value={selectedStream}

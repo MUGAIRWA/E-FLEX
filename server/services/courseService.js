@@ -1,7 +1,7 @@
 const { prisma } = require('../config/db');
 
 /**
- * Normalize class strings like "Form 3", "form 3", "form3" -> "form3"
+ * Normalize class strings like "Grade 10", "grade 10", "grade10" -> "grade10"
  */
 const normalizeClassKey = (cls) => {
   if (!cls || typeof cls !== 'string') return '';
@@ -9,26 +9,36 @@ const normalizeClassKey = (cls) => {
 };
 
 /**
- * Return all equivalent class representations so "form3" and "Form 3" both match
+ * Return all equivalent class representations so "grade10" and "Grade 10" both match
  */
 const getClassVariants = (cls) => {
   const key = normalizeClassKey(cls);
   if (!key) return [];
-  const match = key.match(/^form(\d+)$/);
-  if (match) {
-    const num = match[1];
+  const gradeMatch = key.match(/^grade(\d+)$/);
+  if (gradeMatch) {
+    const num = gradeMatch[1];
+    return [`grade${num}`, `Grade ${num}`, `GRADE ${num}`, `Grade${num}`];
+  }
+  const formMatch = key.match(/^form(\d+)$/);
+  if (formMatch) {
+    const num = formMatch[1];
     return [`form${num}`, `Form ${num}`, `FORM ${num}`, `Form${num}`];
   }
   return [cls.trim(), key];
 };
 
 /**
- * Human-readable label e.g. ("form3", "Blue") -> "Form 3 Blue"
+ * Human-readable label e.g. ("grade10", "Blue") -> "Grade 10 Blue"
  */
 const formatClassStream = (cls, stream) => {
   const key = normalizeClassKey(cls);
-  const match = key.match(/^form(\d+)$/);
-  const prettyClass = match ? `Form ${match[1]}` : cls || '';
+  const gradeMatch = key.match(/^grade(\d+)$/);
+  const formMatch = key.match(/^form(\d+)$/);
+  const prettyClass = gradeMatch
+    ? `Grade ${gradeMatch[1]}`
+    : formMatch
+    ? `Form ${formMatch[1]}`
+    : cls || '';
   return [prettyClass, stream].filter(Boolean).join(' ').trim() || 'All Students';
 };
 

@@ -106,11 +106,11 @@ export function DashboardTab() {
             Welcome back, {userName}!
           </h1>
           <p className="text-[#5C6663]">
-            Live academic updates and assignment alerts for {activeChild.name} ({activeChild.classLabel || 'Form 3 Blue'})
+            Live academic updates and assignment alerts for {activeChild.name} ({activeChild.classLabel || 'Unassigned Stream'})
           </p>
         </div>
         <span className="inline-flex items-center self-start px-4 py-1.5 rounded-full text-xs font-semibold bg-[#134E4A] text-white shadow-sm">
-          Child Stream: {activeChild.classLabel || 'Form 3 Blue'}
+          Child Stream: {activeChild.classLabel || 'Unassigned Stream'}
         </span>
       </div>
 
@@ -132,7 +132,7 @@ export function DashboardTab() {
                 {activeChild.name}
               </h3>
               <p className="text-sm font-medium text-[#134E4A]">
-                {activeChild.classLabel || 'Form 3 Blue'}
+                {activeChild.classLabel || 'Unassigned Stream'}
                 {activeChild.admissionNumber
                   ? ` • Adm: ${activeChild.admissionNumber}`
                   : ''}

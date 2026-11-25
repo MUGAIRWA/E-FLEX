@@ -7,8 +7,13 @@ import { userAPI, assignmentAPI, examAPI } from '../../../services/api';
 const formatClassStream = (cls, stream) => {
   if (!cls && !stream) return 'Unassigned';
   const norm = String(cls || '').toLowerCase().replace(/\s+/g, '');
-  const match = norm.match(/^form(\d+)$/);
-  const prettyClass = match ? `Form ${match[1]}` : cls || '';
+  const gMatch = norm.match(/^grade(\d+)$/);
+  const fMatch = norm.match(/^form(\d+)$/);
+  const prettyClass = gMatch
+    ? `Grade ${gMatch[1]}`
+    : fMatch
+    ? `Form ${fMatch[1]}`
+    : cls || '';
   return [prettyClass, stream].filter(Boolean).join(' ');
 };
 

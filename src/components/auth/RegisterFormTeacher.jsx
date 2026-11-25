@@ -12,17 +12,16 @@ const RegisterFormTeacher = ({ onSubmit, loading }) => {
     email: '',
     phone: '',
     password: '',
-    classesTaught: [], // Array of { class: 'form1', stream: 'Blue' }
+    classesTaught: [], // Array of { class: 'grade10', stream: 'Blue' }
     subjects: []
   });
   const [errors, setErrors] = useState({});
   const [isLoading, setIsLoading] = useState(false);
 
   const classOptions = [
-    { value: 'form1', label: 'Form 1' },
-    { value: 'form2', label: 'Form 2' },
-    { value: 'form3', label: 'Form 3' },
-    { value: 'form4', label: 'Form 4' }
+    { value: 'grade10', label: 'Grade 10' },
+    { value: 'grade11', label: 'Grade 11' },
+    { value: 'grade12', label: 'Grade 12' }
   ];
 
   const streamOptions = STREAMS.map(stream => ({ value: stream, label: stream }));
@@ -195,7 +194,7 @@ const RegisterFormTeacher = ({ onSubmit, loading }) => {
 
       <div className="mb-4">
         <label className="block text-sm font-semibold text-[#16211E] mb-2">
-          Classes Taught <span className="text-[#C85A28]">*</span>
+          Grades Taught (Senior Secondary) <span className="text-[#C85A28]">*</span>
         </label>
         <div className="space-y-3">
           {classOptions.map((classOption) => {

@@ -112,7 +112,7 @@ const AuthPage = () => {
               Structured weekly revision and transparent progress tracking.
             </h1>
             <p className="text-white/80 text-sm xl:text-base mt-4 leading-relaxed">
-              Sign in to access your Form 1–4 subject modules, submit holiday coursework, or review
+              Sign in to access your Grade 10–12 Senior Secondary subject modules, submit holiday coursework, or review
               real-time class and child performance.
             </p>
           </div>
@@ -127,7 +127,7 @@ const AuthPage = () => {
             />
           </div>
           <p className="text-xs text-white/70">
-            © 2026 E-Flex Digital Learning • Form 1 – Form 4 Secondary Curriculum
+            © 2026 E-Flex Digital Learning • Grade 10 – Grade 12 CBE Senior Secondary Curriculum
           </p>
         </div>
       </div>

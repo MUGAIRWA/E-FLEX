@@ -35,20 +35,29 @@ export function ContentUploadTab() {
       ? Array.from(new Set([...user.subjects, ...(SUBJECTS || [])]))
       : SUBJECTS;
 
+  const formatPrettyGrade = (raw: string) => {
+    const clean = raw.trim().toLowerCase().replace(/\s+/g, '');
+    const gMatch = clean.match(/^grade(\d+)$/);
+    if (gMatch) return `Grade ${gMatch[1]}`;
+    const fMatch = clean.match(/^form(\d+)$/);
+    if (fMatch) return `Form ${fMatch[1]}`;
+    return raw;
+  };
+
   const teacherClasses: { label: string; className: string; stream: string }[] =
     user?.classesTaught && user.classesTaught.length > 0
       ? user.classesTaught.map((c: any, idx: number) => {
           if (typeof c === 'string') {
             const str = user?.streamsTaught?.[idx] || 'Blue';
-            const pretty = c.replace(/^form(\d)$/i, 'Form $1');
+            const pretty = formatPrettyGrade(c);
             return {
               label: `${pretty} ${str} (My Stream)`.trim(),
               className: c.toLowerCase().replace(/\s+/g, ''),
               stream: str
             };
           }
-          const cls = (c.class || 'form3').toLowerCase().replace(/\s+/g, '');
-          const pretty = cls.replace(/^form(\d)$/i, 'Form $1');
+          const cls = (c.class || 'grade10').toLowerCase().replace(/\s+/g, '');
+          const pretty = formatPrettyGrade(cls);
           const str = c.stream || 'Blue';
           return {
             label: `${pretty} ${str} (My Stream)`.trim(),
@@ -60,10 +69,9 @@ export function ContentUploadTab() {
 
   const allSchoolClassStreams: { label: string; className: string; stream: string }[] =
     [
-      { code: 'form1', name: 'Form 1' },
-      { code: 'form2', name: 'Form 2' },
-      { code: 'form3', name: 'Form 3' },
-      { code: 'form4', name: 'Form 4' }
+      { code: 'grade10', name: 'Grade 10' },
+      { code: 'grade11', name: 'Grade 11' },
+      { code: 'grade12', name: 'Grade 12' }
     ].flatMap((cls) =>
       (STREAMS || ['Blue', 'Green', 'Yellow', 'Red', 'White']).map((str: string) => ({
         label: `${cls.name} ${str}`,

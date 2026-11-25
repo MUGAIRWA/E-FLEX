@@ -21,10 +21,9 @@ const RegisterFormStudent = ({ onSubmit, loading }) => {
   const [isLoading, setIsLoading] = useState(false);
 
   const classOptions = [
-    { value: 'form1', label: 'Form 1' },
-    { value: 'form2', label: 'Form 2' },
-    { value: 'form3', label: 'Form 3' },
-    { value: 'form4', label: 'Form 4' }
+    { value: 'grade10', label: 'Grade 10' },
+    { value: 'grade11', label: 'Grade 11' },
+    { value: 'grade12', label: 'Grade 12' }
   ];
 
   const streamOptions = [
@@ -182,7 +181,7 @@ const RegisterFormStudent = ({ onSubmit, loading }) => {
       />
 
       <InputField
-        label="Class"
+        label="Grade (Senior Secondary)"
         type="select"
         name="class"
         options={classOptions}

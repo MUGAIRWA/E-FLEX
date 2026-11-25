@@ -33,10 +33,10 @@ const ROLE_DETAILS: RoleDetail[] = [
     badge: 'Student Portal',
     tagline: 'Structured weekly revision without last-minute holiday panic.',
     description:
-      'Instead of bulky photocopied holiday packets that get misplaced or rushed on the final weekend before school reopens, E-Flex breaks Form 1–4 revision into clear weekly modules, interactive quizzes, and teacher-marked assignments.',
+      'Instead of bulky photocopied holiday packets that get misplaced or rushed on the final weekend before school reopens, E-Flex breaks Grade 10–12 Senior Secondary revision into clear weekly modules, interactive quizzes, and teacher-marked assignments.',
     image: '/images/student-studying.jpg',
     highlights: [
-      'Form 1 – Form 4 subject modules organized week by week',
+      'Grade 10 – Grade 12 Senior Secondary subject modules organized week by week',
       'Timed interactive quizzes with immediate score breakdowns',
       'Digital assignment submissions with worksheet & photo uploads',
       'Clear subject-by-subject mastery tracking and study progress',
@@ -85,7 +85,7 @@ const ROLE_DETAILS: RoleDetail[] = [
     image: '/images/school-admin.jpg',
     highlights: [
       'Create and manage student, teacher, parent, and admin accounts',
-      'Configure subjects, assign teachers, and structure Form 1–4 streams',
+      'Configure subjects, assign teachers, and structure Grade 10–12 streams',
       'Track course activity, submission rates, and financial summaries',
       'Broadcast school-wide administrative or urgent announcements',
       'Resolve student and parent support tickets cleanly'
@@ -102,7 +102,7 @@ const FAQS = [
   {
     question: 'How does the weekly module system work?',
     answer:
-      'Courses are structured by subject, class (Form 1 to Form 4), and stream. Teachers publish weekly reading notes, worked examples, video links, and assignments so learners complete manageable milestones every week of the holiday.'
+      'Courses are structured by subject, grade (Grade 10 to Grade 12 Senior Secondary), and stream. Teachers publish weekly reading notes, worked examples, video links, and assignments so learners complete manageable milestones every week of the holiday.'
   },
   {
     question: 'How do parents connect to their child’s account?',
@@ -181,8 +181,8 @@ export function AboutPage() {
                 <div className="p-6 bg-[#134E4A] text-white">
                   <div className="grid grid-cols-3 gap-4 text-center divide-x divide-white/15">
                     <div>
-                      <div className="font-poppins font-bold text-2xl">Form 1–4</div>
-                      <div className="text-[11px] text-white/75 mt-0.5">Secondary Classes</div>
+                      <div className="font-poppins font-bold text-2xl">Grade 10–12</div>
+                      <div className="text-[11px] text-white/75 mt-0.5">Senior Secondary</div>
                     </div>
                     <div>
                       <div className="font-poppins font-bold text-2xl">4 Portals</div>

@@ -32,7 +32,9 @@ export function OverviewTab() {
   const [recentStreamItems, setRecentStreamItems] = useState<any[]>([]);
 
   const formatClassLabel = (cls?: string, stream?: string) => {
-    const prettyClass = cls ? cls.replace(/^form(\d)$/i, 'Form $1') : '';
+    const prettyClass = cls
+      ? cls.replace(/^grade(\d+)$/i, 'Grade $1').replace(/^form(\d+)$/i, 'Form $1')
+      : '';
     return [prettyClass, stream].filter(Boolean).join(' ').trim();
   };
 

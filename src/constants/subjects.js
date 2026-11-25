@@ -8,16 +8,15 @@ export const STREAMS = [
 ];
 
 export const CLASSES = [
-  'Form 1',
-  'Form 2',
-  'Form 3',
-  'Form 4'
+  'Grade 10',
+  'Grade 11',
+  'Grade 12'
 ];
 
 export const SUBJECTS = [
   'Mathematics',
   'English',
-  'Kiwahili',
+  'Kiswahili',
   'Chemistry',
   'Biology',
   'Physics',

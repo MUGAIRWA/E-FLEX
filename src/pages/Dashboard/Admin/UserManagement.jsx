@@ -15,8 +15,13 @@ import { useAuth } from '../../../contexts/AuthContext';
 const formatClassStream = (cls, stream) => {
   if (!cls && !stream) return '—';
   const norm = String(cls || '').toLowerCase().replace(/\s+/g, '');
-  const match = norm.match(/^form(\d+)$/);
-  const prettyClass = match ? `Form ${match[1]}` : cls || '';
+  const gMatch = norm.match(/^grade(\d+)$/);
+  const fMatch = norm.match(/^form(\d+)$/);
+  const prettyClass = gMatch
+    ? `Grade ${gMatch[1]}`
+    : fMatch
+    ? `Form ${fMatch[1]}`
+    : cls || '';
   return [prettyClass, stream].filter(Boolean).join(' ') || '—';
 };
 
@@ -69,7 +74,7 @@ export function UserManagement() {
     role: 'student',
     phoneNumber: '',
     admissionNumber: '',
-    class: 'form1',
+    class: 'grade10',
     stream: 'Blue',
     childEmail: '',
     subjects: ''
@@ -167,7 +172,7 @@ export function UserManagement() {
       role: u.role || 'student',
       phoneNumber: u.phoneNumber || '',
       admissionNumber: u.admissionNumber || '',
-      class: u.class || 'form1',
+      class: u.class || 'grade10',
       stream: u.stream || 'Blue',
       childEmail: u.childEmail || '',
       subjects: Array.isArray(u.subjects) ? u.subjects.join(', ') : '',
@@ -594,16 +599,15 @@ export function UserManagement() {
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-semibold text-[#16211E] mb-1">Class</label>
+                    <label className="block text-xs font-semibold text-[#16211E] mb-1">Grade (Senior Secondary)</label>
                     <select
                       value={formData.class}
                       onChange={(e) => setFormData({ ...formData, class: e.target.value })}
                       className="w-full px-3 py-2 border border-[#D8D1C4] bg-white rounded-xl"
                     >
-                      <option value="form1">Form 1</option>
-                      <option value="form2">Form 2</option>
-                      <option value="form3">Form 3</option>
-                      <option value="form4">Form 4</option>
+                      <option value="grade10">Grade 10</option>
+                      <option value="grade11">Grade 11</option>
+                      <option value="grade12">Grade 12</option>
                     </select>
                   </div>
                   <div>

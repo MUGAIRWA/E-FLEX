@@ -257,11 +257,10 @@ export function FinanceDashboard() {
             onChange={(e) => setSelectedClass(e.target.value)}
             className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
           >
-            <option value="all">All Classes</option>
-            <option value="form1">Form 1</option>
-            <option value="form2">Form 2</option>
-            <option value="form3">Form 3</option>
-            <option value="form4">Form 4</option>
+            <option value="all">All Grades</option>
+            <option value="grade10">Grade 10</option>
+            <option value="grade11">Grade 11</option>
+            <option value="grade12">Grade 12</option>
           </select>
           <div className="flex space-x-2">
             <Button variant="outline" onClick={handleExportCSV}>
